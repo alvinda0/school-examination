@@ -1,5 +1,5 @@
 -- +migrate Up
-CREATE TABLE IF NOT EXISTS role (
+CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS role (
 );
 
 -- Insert sample roles
-INSERT INTO role (name, description) VALUES 
+INSERT INTO roles (name, description) VALUES 
     ('super_admin', 'Super Administrator with full system access'),
     ('admin', 'Administrator with management access'),
     ('teacher', 'Teacher with teaching and grading access'),
@@ -16,4 +16,4 @@ INSERT INTO role (name, description) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- +migrate Down
-DROP TABLE IF EXISTS role;
+DROP TABLE IF EXISTS roles;

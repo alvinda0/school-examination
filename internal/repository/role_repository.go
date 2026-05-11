@@ -23,7 +23,7 @@ func NewRoleRepository(db *sql.DB) RoleRepository {
 }
 
 func (r *roleRepository) GetAll() ([]model.Role, error) {
-	rows, err := r.db.Query("SELECT id, name, description, created_at, updated_at FROM role ORDER BY id")
+	rows, err := r.db.Query("SELECT id, name, description, created_at, updated_at FROM roles ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (r *roleRepository) GetAll() ([]model.Role, error) {
 
 func (r *roleRepository) GetByID(id string) (*model.Role, error) {
 	var role model.Role
-	query := "SELECT id, name, description, created_at, updated_at FROM role WHERE id = $1"
+	query := "SELECT id, name, description, created_at, updated_at FROM roles WHERE id = $1"
 	
 	err := r.db.QueryRow(query, id).
 		Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt, &role.UpdatedAt)
@@ -64,7 +64,7 @@ func (r *roleRepository) GetByID(id string) (*model.Role, error) {
 
 func (r *roleRepository) Create(name, description string) (*model.Role, error) {
 	var newRole model.Role
-	query := `INSERT INTO role (name, description, created_at, updated_at) 
+	query := `INSERT INTO roles (name, description, created_at, updated_at) 
 	          VALUES ($1, $2, NOW(), NOW()) 
 	          RETURNING id, name, description, created_at, updated_at`
 	
@@ -80,7 +80,7 @@ func (r *roleRepository) Create(name, description string) (*model.Role, error) {
 
 func (r *roleRepository) Update(id, name, description string) (*model.Role, error) {
 	var updated model.Role
-	query := `UPDATE role 
+	query := `UPDATE roles 
 	          SET name = $1, description = $2, updated_at = NOW() 
 	          WHERE id = $3 
 	          RETURNING id, name, description, created_at, updated_at`
@@ -99,7 +99,7 @@ func (r *roleRepository) Update(id, name, description string) (*model.Role, erro
 }
 
 func (r *roleRepository) Delete(id string) (int64, error) {
-	result, err := r.db.Exec("DELETE FROM role WHERE id = $1", id)
+	result, err := r.db.Exec("DELETE FROM roles WHERE id = $1", id)
 	if err != nil {
 		return 0, err
 	}

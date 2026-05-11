@@ -18,14 +18,13 @@ clean:
 
 # Run migrations using SQL file
 migrate:
-	@echo "Please run the SQL migrations manually using your database client (pgAdmin, DBeaver, etc.)"
-	@echo "Files (in order):"
-	@echo "  1. migrations/000001_create_roles.sql"
-	@echo "  2. migrations/000001_create_users.sql"
+	@echo "Running migrations..."
+	@echo "Note: Make sure PostgreSQL is running on localhost:5433"
 	@echo ""
-	@echo "Or connect to PostgreSQL and run:"
-	@echo "psql -h localhost -p 5433 -U postgres -d school -f migrations/000001_create_roles.sql"
-	@echo "psql -h localhost -p 5433 -U postgres -d school -f migrations/000001_create_users.sql"
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000001_create_roles.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000001_create_users.sql
+	@echo ""
+	@echo "✅ Migrations completed!"
 
 # Install dependencies
 deps:
