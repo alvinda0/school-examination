@@ -11,9 +11,10 @@ import (
 type UserService interface {
 	GetAllUsers(roleID string) ([]model.User, error)
 	GetUserByID(id string) (*model.User, error)
-	CreateUser(name string, age int) (*model.User, error)
-	UpdateUser(id, name string, age int) (*model.User, error)
+	CreateUser(fullName, email, password, roleID, status string) (*model.User, error)
+	UpdateUser(id, fullName, email, password, roleID, status string) (*model.User, error)
 	DeleteUser(id string) error
+	UpdateLastLogin(id string) error
 }
 
 type userService struct {
@@ -44,26 +45,63 @@ func (s *userService) GetUserByID(id string) (*model.User, error) {
 	return user, nil
 }
 
-func (s *userService) CreateUser(name string, age int) (*model.User, error) {
-	if strings.TrimSpace(name) == "" {
-		return nil, errors.New("name tidak boleh kosong")
+func (s *userService) CreateUser(fullName, email, password, roleID, status string) (*model.User, error) {
+	if strings.TrimSpace(fullName) == "" {
+		return nil, errors.New("full_name tidak boleh kosong")
 	}
-	if age <= 0 {
-		return nil, errors.New("age harus lebih dari 0")
+	if strings.TrimSpace(email) == "" {
+		return nil, errors.New("email tidak boleh kosong")
+	}
+	if strings.TrimSpace(password) == "" {
+		return nil, errors.New("password tidak boleh kosong")
+	}
+	if strings.TrimSpace(roleID) == "" {
+		return nil, errors.New("role_id tidak boleh kosong")
 	}
 
-	return s.repo.Create(name, age)
+	// Validasi status
+	if status != "" && status != "active" && status != "inactive" && status != "suspended" {
+		return nil, errors.New("status harus salah satu dari: active, inactive, suspended")
+	}
+
+	// TODO: Hash password sebelum disimpan
+	// hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// if err != nil {
+	//     return nil, err
+	// }
+
+	return s.repo.Create(fullName, email, password, roleID, status)
 }
 
-func (s *userService) UpdateUser(id, name string, age int) (*model.User, error) {
-	if strings.TrimSpace(name) == "" {
-		return nil, errors.New("name tidak boleh kosong")
+func (s *userService) UpdateUser(id, fullName, email, password, roleID, status string) (*model.User, error) {
+	if strings.TrimSpace(fullName) == "" {
+		return nil, errors.New("full_name tidak boleh kosong")
 	}
-	if age <= 0 {
-		return nil, errors.New("age harus lebih dari 0")
+	if strings.TrimSpace(email) == "" {
+		return nil, errors.New("email tidak boleh kosong")
+	}
+	if strings.TrimSpace(roleID) == "" {
+		return nil, errors.New("role_id tidak boleh kosong")
+	}
+	if strings.TrimSpace(status) == "" {
+		return nil, errors.New("status tidak boleh kosong")
 	}
 
-	user, err := s.repo.Update(id, name, age)
+	// Validasi status
+	if status != "active" && status != "inactive" && status != "suspended" {
+		return nil, errors.New("status harus salah satu dari: active, inactive, suspended")
+	}
+
+	// TODO: Hash password jika diubah
+	// if password != "" {
+	//     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	//     if err != nil {
+	//         return nil, err
+	//     }
+	//     password = string(hashedPassword)
+	// }
+
+	user, err := s.repo.Update(id, fullName, email, password, roleID, status)
 	if err != nil {
 		return nil, err
 	}
@@ -84,4 +122,8 @@ func (s *userService) DeleteUser(id string) error {
 	}
 
 	return nil
+}
+
+func (s *userService) UpdateLastLogin(id string) error {
+	return s.repo.UpdateLastLogin(id)
 }

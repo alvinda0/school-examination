@@ -16,9 +16,12 @@ test:
 clean:
 	rm -rf bin/
 
-# Run migrations (manual)
+# Run migrations using SQL file
 migrate:
-	psql -h localhost -p 5433 -U postgres -d postgres -f migrations/000001_create_users.sql
+	@echo "Please run the SQL migration manually using your database client (pgAdmin, DBeaver, etc.)"
+	@echo "File: migrations/000001_create_users.sql"
+	@echo "Or connect to PostgreSQL and run:"
+	@echo "psql -h localhost -p 5433 -U postgres -d school -f migrations/000001_create_users.sql"
 
 # Install dependencies
 deps:

@@ -9,9 +9,10 @@ import (
 type UserRepository interface {
 	GetAll(roleID string) ([]model.User, error)
 	GetByID(id string) (*model.User, error)
-	Create(name string, age int) (*model.User, error)
-	Update(id, name string, age int) (*model.User, error)
+	Create(fullName, email, password, roleID, status string) (*model.User, error)
+	Update(id, fullName, email, password, roleID, status string) (*model.User, error)
 	Delete(id string) (int64, error)
+	UpdateLastLogin(id string) error
 }
 
 type userRepository struct {
@@ -26,10 +27,15 @@ func (r *userRepository) GetAll(roleID string) ([]model.User, error) {
 	var rows *sql.Rows
 	var err error
 
+	query := `SELECT id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at 
+	          FROM users 
+	          WHERE deleted_at IS NULL`
+
 	if roleID != "" {
-		rows, err = r.db.Query("SELECT id, name, age, role_id FROM users WHERE role_id = $1", roleID)
+		query += " AND role_id = $1"
+		rows, err = r.db.Query(query, roleID)
 	} else {
-		rows, err = r.db.Query("SELECT id, name, age, role_id FROM users")
+		rows, err = r.db.Query(query)
 	}
 
 	if err != nil {
@@ -40,7 +46,7 @@ func (r *userRepository) GetAll(roleID string) ([]model.User, error) {
 	var users []model.User
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Age, &u.RoleID); err != nil {
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.RoleID, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -55,8 +61,12 @@ func (r *userRepository) GetAll(roleID string) ([]model.User, error) {
 
 func (r *userRepository) GetByID(id string) (*model.User, error) {
 	var u model.User
-	err := r.db.QueryRow("SELECT id, name, age FROM users WHERE id = $1", id).
-		Scan(&u.ID, &u.Name, &u.Age)
+	query := `SELECT id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at 
+	          FROM users 
+	          WHERE id = $1 AND deleted_at IS NULL`
+	
+	err := r.db.QueryRow(query, id).
+		Scan(&u.ID, &u.FullName, &u.Email, &u.RoleID, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -68,12 +78,21 @@ func (r *userRepository) GetByID(id string) (*model.User, error) {
 	return &u, nil
 }
 
-func (r *userRepository) Create(name string, age int) (*model.User, error) {
+func (r *userRepository) Create(fullName, email, password, roleID, status string) (*model.User, error) {
 	var newUser model.User
-	err := r.db.QueryRow(
-		"INSERT INTO users (name, age) VALUES ($1, $2) RETURNING id, name, age",
-		name, age,
-	).Scan(&newUser.ID, &newUser.Name, &newUser.Age)
+	
+	// Default status jika kosong
+	if status == "" {
+		status = "active"
+	}
+	
+	query := `INSERT INTO users (full_name, email, password, role_id, status, created_at, updated_at) 
+	          VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) 
+	          RETURNING id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at`
+	
+	err := r.db.QueryRow(query, fullName, email, password, roleID, status).
+		Scan(&newUser.ID, &newUser.FullName, &newUser.Email, &newUser.RoleID, &newUser.Status, 
+			&newUser.LastLogin, &newUser.CreatedAt, &newUser.UpdatedAt, &newUser.DeletedAt)
 
 	if err != nil {
 		return nil, err
@@ -82,12 +101,28 @@ func (r *userRepository) Create(name string, age int) (*model.User, error) {
 	return &newUser, nil
 }
 
-func (r *userRepository) Update(id, name string, age int) (*model.User, error) {
+func (r *userRepository) Update(id, fullName, email, password, roleID, status string) (*model.User, error) {
 	var updated model.User
-	err := r.db.QueryRow(
-		"UPDATE users SET name = $1, age = $2 WHERE id = $3 RETURNING id, name, age",
-		name, age, id,
-	).Scan(&updated.ID, &updated.Name, &updated.Age)
+	var query string
+	var err error
+
+	if password != "" {
+		query = `UPDATE users 
+		         SET full_name = $1, email = $2, password = $3, role_id = $4, status = $5, updated_at = NOW() 
+		         WHERE id = $6 AND deleted_at IS NULL 
+		         RETURNING id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at`
+		err = r.db.QueryRow(query, fullName, email, password, roleID, status, id).
+			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &updated.Status, 
+				&updated.LastLogin, &updated.CreatedAt, &updated.UpdatedAt, &updated.DeletedAt)
+	} else {
+		query = `UPDATE users 
+		         SET full_name = $1, email = $2, role_id = $3, status = $4, updated_at = NOW() 
+		         WHERE id = $5 AND deleted_at IS NULL 
+		         RETURNING id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at`
+		err = r.db.QueryRow(query, fullName, email, roleID, status, id).
+			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &updated.Status, 
+				&updated.LastLogin, &updated.CreatedAt, &updated.UpdatedAt, &updated.DeletedAt)
+	}
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -100,10 +135,16 @@ func (r *userRepository) Update(id, name string, age int) (*model.User, error) {
 }
 
 func (r *userRepository) Delete(id string) (int64, error) {
-	result, err := r.db.Exec("DELETE FROM users WHERE id = $1", id)
+	// Soft delete
+	result, err := r.db.Exec("UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL", id)
 	if err != nil {
 		return 0, err
 	}
 
 	return result.RowsAffected()
+}
+
+func (r *userRepository) UpdateLastLogin(id string) error {
+	_, err := r.db.Exec("UPDATE users SET last_login = NOW() WHERE id = $1 AND deleted_at IS NULL", id)
+	return err
 }

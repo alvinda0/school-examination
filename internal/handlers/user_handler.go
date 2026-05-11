@@ -92,7 +92,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.CreateUser(input.Name, input.Age)
+	user, err := h.service.CreateUser(input.FullName, input.Email, input.Password, input.RoleID, input.Status)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusBadRequest, err.Error(), nil, nil)
 		return
@@ -109,7 +109,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 
-	user, err := h.service.UpdateUser(id, input.Name, input.Age)
+	user, err := h.service.UpdateUser(id, input.FullName, input.Email, input.Password, input.RoleID, input.Status)
 	if err != nil {
 		if err.Error() == "user tidak ditemukan" {
 			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
