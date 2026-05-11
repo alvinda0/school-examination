@@ -35,20 +35,17 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
-	productRepo := repository.NewProductRepository(db)
 
 	// Initialize services
 	userService := services.NewUserService(userRepo)
 	roleService := services.NewRoleService(roleRepo)
-	productService := services.NewProductService(productRepo)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
 	roleHandler := handlers.NewRoleHandler(roleService)
-	productHandler := handlers.NewProductHandler(productService)
 
 	// Setup routes
-	routes.SetupRoutes(userHandler, roleHandler, productHandler)
+	routes.SetupRoutes(userHandler, roleHandler)
 
 	// Start server
 	serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)
