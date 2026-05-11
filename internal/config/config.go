@@ -10,6 +10,7 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 	ServerPort string
+	JWTSecret  string
 }
 
 func Load() *Config {
@@ -21,6 +22,7 @@ func Load() *Config {
 		DBName:     getEnv("DB_NAME", "postgres"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 		ServerPort: getEnv("SERVER_PORT", "8080"),
+		JWTSecret:  getEnv("JWT_SECRET", "your-secret-key-change-this-in-production"),
 	}
 }
 

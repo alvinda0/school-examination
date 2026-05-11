@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role_id INT REFERENCES roles(id),
-    status VARCHAR(50) DEFAULT 'active',
+    status BOOLEAN DEFAULT true,
     last_login TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -16,13 +16,13 @@ CREATE TABLE IF NOT EXISTS users (
 -- Note: Password is 'password123' hashed with bcrypt
 INSERT INTO users (full_name, email, password, role_id, status) VALUES 
     ('Super Admin User', 'superadmin@school.com', '$2a$10$rZ8qH5L5vZ5vZ5vZ5vZ5vOqH5L5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ', 
-     (SELECT id FROM roles WHERE name = 'super_admin'), 'active'),
+     (SELECT id FROM roles WHERE name = 'super_admin'), true),
     ('Admin User', 'admin@school.com', '$2a$10$rZ8qH5L5vZ5vZ5vZ5vZ5vOqH5L5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ', 
-     (SELECT id FROM roles WHERE name = 'admin'), 'active'),
+     (SELECT id FROM roles WHERE name = 'admin'), true),
     ('Teacher User', 'teacher@school.com', '$2a$10$rZ8qH5L5vZ5vZ5vZ5vZ5vOqH5L5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ', 
-     (SELECT id FROM roles WHERE name = 'teacher'), 'active'),
+     (SELECT id FROM roles WHERE name = 'teacher'), true),
     ('Student User', 'student@school.com', '$2a$10$rZ8qH5L5vZ5vZ5vZ5vZ5vOqH5L5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ5vZ', 
-     (SELECT id FROM roles WHERE name = 'student'), 'active')
+     (SELECT id FROM roles WHERE name = 'student'), true)
 ON CONFLICT (email) DO NOTHING;
 
 -- +migrate Down

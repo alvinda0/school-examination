@@ -9,10 +9,22 @@ import (
 type UserRepository interface {
 	GetAll(roleID string) ([]model.User, error)
 	GetByID(id string) (*model.User, error)
-	Create(fullName, email, password, roleID, status string) (*model.User, error)
-	Update(id, fullName, email, password, roleID, status string) (*model.User, error)
+	GetByEmail(email string) (*model.User, error)
+	GetByIDWithRole(id string) (*UserWithRole, error)
+	Create(fullName, email, password, roleID string, status bool) (*model.User, error)
+	Update(id, fullName, email, password, roleID string, status bool) (*model.User, error)
 	Delete(id string) (int64, error)
 	UpdateLastLogin(id string) error
+}
+
+// UserWithRole adalah struct untuk user dengan informasi role
+type UserWithRole struct {
+	UserID   string
+	FullName string
+	Email    string
+	RoleName string
+	RoleID   string
+	Status   bool
 }
 
 type userRepository struct {
@@ -61,12 +73,12 @@ func (r *userRepository) GetAll(roleID string) ([]model.User, error) {
 
 func (r *userRepository) GetByID(id string) (*model.User, error) {
 	var u model.User
-	query := `SELECT id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at 
+	query := `SELECT id, full_name, email, password, role_id, status, last_login, created_at, updated_at, deleted_at 
 	          FROM users 
 	          WHERE id = $1 AND deleted_at IS NULL`
 	
 	err := r.db.QueryRow(query, id).
-		Scan(&u.ID, &u.FullName, &u.Email, &u.RoleID, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
+		Scan(&u.ID, &u.FullName, &u.Email, &u.Password, &u.RoleID, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -78,13 +90,27 @@ func (r *userRepository) GetByID(id string) (*model.User, error) {
 	return &u, nil
 }
 
-func (r *userRepository) Create(fullName, email, password, roleID, status string) (*model.User, error) {
-	var newUser model.User
+func (r *userRepository) GetByEmail(email string) (*model.User, error) {
+	var u model.User
+	query := `SELECT id, full_name, email, password, role_id, status, last_login, created_at, updated_at, deleted_at 
+	          FROM users 
+	          WHERE email = $1 AND deleted_at IS NULL`
 	
-	// Default status jika kosong
-	if status == "" {
-		status = "active"
+	err := r.db.QueryRow(query, email).
+		Scan(&u.ID, &u.FullName, &u.Email, &u.Password, &u.RoleID, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &u, nil
+}
+
+func (r *userRepository) Create(fullName, email, password, roleID string, status bool) (*model.User, error) {
+	var newUser model.User
 	
 	query := `INSERT INTO users (full_name, email, password, role_id, status, created_at, updated_at) 
 	          VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) 
@@ -101,7 +127,7 @@ func (r *userRepository) Create(fullName, email, password, roleID, status string
 	return &newUser, nil
 }
 
-func (r *userRepository) Update(id, fullName, email, password, roleID, status string) (*model.User, error) {
+func (r *userRepository) Update(id, fullName, email, password, roleID string, status bool) (*model.User, error) {
 	var updated model.User
 	var query string
 	var err error
@@ -147,4 +173,25 @@ func (r *userRepository) Delete(id string) (int64, error) {
 func (r *userRepository) UpdateLastLogin(id string) error {
 	_, err := r.db.Exec("UPDATE users SET last_login = NOW() WHERE id = $1 AND deleted_at IS NULL", id)
 	return err
+}
+
+func (r *userRepository) GetByIDWithRole(id string) (*UserWithRole, error) {
+	var userWithRole UserWithRole
+	query := `SELECT u.id, u.full_name, u.email, r.name as role_name, u.role_id, u.status 
+	          FROM users u
+	          INNER JOIN roles r ON u.role_id = r.id
+	          WHERE u.id = $1 AND u.deleted_at IS NULL`
+	
+	err := r.db.QueryRow(query, id).
+		Scan(&userWithRole.UserID, &userWithRole.FullName, &userWithRole.Email, 
+			&userWithRole.RoleName, &userWithRole.RoleID, &userWithRole.Status)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &userWithRole, nil
 }

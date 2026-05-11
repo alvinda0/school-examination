@@ -6,13 +6,15 @@ import (
 
 	"github.com/alvindashahrul/my-app/internal/model"
 	"github.com/alvindashahrul/my-app/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
 	GetAllUsers(roleID string) ([]model.User, error)
 	GetUserByID(id string) (*model.User, error)
-	CreateUser(fullName, email, password, roleID, status string) (*model.User, error)
-	UpdateUser(id, fullName, email, password, roleID, status string) (*model.User, error)
+	GetUserByIDWithRole(id string) (*repository.UserWithRole, error)
+	CreateUser(fullName, email, password, roleID string, status bool) (*model.User, error)
+	UpdateUser(id, fullName, email, password, roleID string, status bool) (*model.User, error)
 	DeleteUser(id string) error
 	UpdateLastLogin(id string) error
 }
@@ -23,6 +25,15 @@ type userService struct {
 
 func NewUserService(repo repository.UserRepository) UserService {
 	return &userService{repo: repo}
+}
+
+// hashPassword melakukan hashing password dengan bcrypt
+func hashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", errors.New("gagal melakukan hash password")
+	}
+	return string(hashedPassword), nil
 }
 
 func (s *userService) GetAllUsers(roleID string) ([]model.User, error) {
@@ -45,7 +56,7 @@ func (s *userService) GetUserByID(id string) (*model.User, error) {
 	return user, nil
 }
 
-func (s *userService) CreateUser(fullName, email, password, roleID, status string) (*model.User, error) {
+func (s *userService) CreateUser(fullName, email, password, roleID string, status bool) (*model.User, error) {
 	if strings.TrimSpace(fullName) == "" {
 		return nil, errors.New("full_name tidak boleh kosong")
 	}
@@ -59,21 +70,16 @@ func (s *userService) CreateUser(fullName, email, password, roleID, status strin
 		return nil, errors.New("role_id tidak boleh kosong")
 	}
 
-	// Validasi status
-	if status != "" && status != "active" && status != "inactive" && status != "suspended" {
-		return nil, errors.New("status harus salah satu dari: active, inactive, suspended")
+	// Hash password sebelum disimpan
+	hashedPassword, err := hashPassword(password)
+	if err != nil {
+		return nil, err
 	}
 
-	// TODO: Hash password sebelum disimpan
-	// hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	// if err != nil {
-	//     return nil, err
-	// }
-
-	return s.repo.Create(fullName, email, password, roleID, status)
+	return s.repo.Create(fullName, email, hashedPassword, roleID, status)
 }
 
-func (s *userService) UpdateUser(id, fullName, email, password, roleID, status string) (*model.User, error) {
+func (s *userService) UpdateUser(id, fullName, email, password, roleID string, status bool) (*model.User, error) {
 	if strings.TrimSpace(fullName) == "" {
 		return nil, errors.New("full_name tidak boleh kosong")
 	}
@@ -83,23 +89,15 @@ func (s *userService) UpdateUser(id, fullName, email, password, roleID, status s
 	if strings.TrimSpace(roleID) == "" {
 		return nil, errors.New("role_id tidak boleh kosong")
 	}
-	if strings.TrimSpace(status) == "" {
-		return nil, errors.New("status tidak boleh kosong")
-	}
 
-	// Validasi status
-	if status != "active" && status != "inactive" && status != "suspended" {
-		return nil, errors.New("status harus salah satu dari: active, inactive, suspended")
+	// Hash password jika diubah
+	if password != "" {
+		hashedPassword, err := hashPassword(password)
+		if err != nil {
+			return nil, err
+		}
+		password = hashedPassword
 	}
-
-	// TODO: Hash password jika diubah
-	// if password != "" {
-	//     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	//     if err != nil {
-	//         return nil, err
-	//     }
-	//     password = string(hashedPassword)
-	// }
 
 	user, err := s.repo.Update(id, fullName, email, password, roleID, status)
 	if err != nil {
@@ -126,4 +124,20 @@ func (s *userService) DeleteUser(id string) error {
 
 func (s *userService) UpdateLastLogin(id string) error {
 	return s.repo.UpdateLastLogin(id)
+}
+
+func (s *userService) GetUserByIDWithRole(id string) (*repository.UserWithRole, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, errors.New("ID tidak boleh kosong")
+	}
+
+	userWithRole, err := s.repo.GetByIDWithRole(id)
+	if err != nil {
+		return nil, err
+	}
+	if userWithRole == nil {
+		return nil, errors.New("user tidak ditemukan")
+	}
+
+	return userWithRole, nil
 }

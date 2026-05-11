@@ -39,13 +39,15 @@ func main() {
 	// Initialize services
 	userService := services.NewUserService(userRepo)
 	roleService := services.NewRoleService(roleRepo)
+	authService := services.NewAuthService(userRepo, cfg.JWTSecret)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
 	roleHandler := handlers.NewRoleHandler(roleService)
+	authHandler := handlers.NewAuthHandler(userService, authService)
 
 	// Setup routes
-	routes.SetupRoutes(userHandler, roleHandler)
+	routes.SetupRoutes(userHandler, roleHandler, authHandler, authService)
 
 	// Start server
 	serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)

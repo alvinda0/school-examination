@@ -5,7 +5,7 @@ type CreateUserRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	RoleID   string `json:"role_id"`
-	Status   string `json:"status,omitempty"` // optional, default: active
+	Status   *bool  `json:"status,omitempty"` // optional, default: true
 }
 
 type UpdateUserRequest struct {
@@ -13,5 +13,5 @@ type UpdateUserRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password,omitempty"`
 	RoleID   string `json:"role_id"`
-	Status   string `json:"status"`
+	Status   bool   `json:"status"`
 }
