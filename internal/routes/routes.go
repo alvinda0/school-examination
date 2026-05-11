@@ -11,8 +11,9 @@ func SetupRoutes(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHa
 	http.HandleFunc("/api/v1/users", userHandler.UsersHandler)
 	http.HandleFunc("/api/v1/users/", userHandler.UserByIDHandler)
 
-	// Role
-	http.HandleFunc("/api/v1/role", roleHandler.GetRoles)
+	// Roles CRUD
+	http.HandleFunc("/api/v1/roles", roleHandler.RolesHandler)
+	http.HandleFunc("/api/v1/roles/", roleHandler.RoleByIDHandler)
 
 	// Products
 	http.HandleFunc("/api/v1/products", productHandler.GetProducts)

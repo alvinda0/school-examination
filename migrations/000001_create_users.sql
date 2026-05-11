@@ -1,10 +1,4 @@
 -- +migrate Up
-CREATE TABLE IF NOT EXISTS role (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     full_name VARCHAR(255) NOT NULL,
@@ -18,9 +12,5 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at TIMESTAMP NULL
 );
 
--- Insert sample roles
-INSERT INTO role (name) VALUES ('Admin'), ('User'), ('Guest');
-
 -- +migrate Down
 DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS role;

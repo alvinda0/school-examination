@@ -8,6 +8,10 @@ import (
 
 type RoleRepository interface {
 	GetAll() ([]model.Role, error)
+	GetByID(id string) (*model.Role, error)
+	Create(name, description string) (*model.Role, error)
+	Update(id, name, description string) (*model.Role, error)
+	Delete(id string) (int64, error)
 }
 
 type roleRepository struct {
@@ -19,7 +23,7 @@ func NewRoleRepository(db *sql.DB) RoleRepository {
 }
 
 func (r *roleRepository) GetAll() ([]model.Role, error) {
-	rows, err := r.db.Query("SELECT id, name FROM role")
+	rows, err := r.db.Query("SELECT id, name, description, created_at, updated_at FROM role ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +32,7 @@ func (r *roleRepository) GetAll() ([]model.Role, error) {
 	var roles []model.Role
 	for rows.Next() {
 		var role model.Role
-		if err := rows.Scan(&role.ID, &role.Name); err != nil {
+		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt, &role.UpdatedAt); err != nil {
 			return nil, err
 		}
 		roles = append(roles, role)
@@ -39,4 +43,66 @@ func (r *roleRepository) GetAll() ([]model.Role, error) {
 	}
 
 	return roles, nil
+}
+
+func (r *roleRepository) GetByID(id string) (*model.Role, error) {
+	var role model.Role
+	query := "SELECT id, name, description, created_at, updated_at FROM role WHERE id = $1"
+	
+	err := r.db.QueryRow(query, id).
+		Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt, &role.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &role, nil
+}
+
+func (r *roleRepository) Create(name, description string) (*model.Role, error) {
+	var newRole model.Role
+	query := `INSERT INTO role (name, description, created_at, updated_at) 
+	          VALUES ($1, $2, NOW(), NOW()) 
+	          RETURNING id, name, description, created_at, updated_at`
+	
+	err := r.db.QueryRow(query, name, description).
+		Scan(&newRole.ID, &newRole.Name, &newRole.Description, &newRole.CreatedAt, &newRole.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &newRole, nil
+}
+
+func (r *roleRepository) Update(id, name, description string) (*model.Role, error) {
+	var updated model.Role
+	query := `UPDATE role 
+	          SET name = $1, description = $2, updated_at = NOW() 
+	          WHERE id = $3 
+	          RETURNING id, name, description, created_at, updated_at`
+	
+	err := r.db.QueryRow(query, name, description, id).
+		Scan(&updated.ID, &updated.Name, &updated.Description, &updated.CreatedAt, &updated.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
+}
+
+func (r *roleRepository) Delete(id string) (int64, error) {
+	result, err := r.db.Exec("DELETE FROM role WHERE id = $1", id)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected()
 }
