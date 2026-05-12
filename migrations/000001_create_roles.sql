@@ -12,7 +12,8 @@ INSERT INTO roles (name, description) VALUES
     ('super_admin', 'Super Administrator with full system access'),
     ('admin', 'Administrator with management access'),
     ('teacher', 'Teacher with teaching and grading access'),
-    ('student', 'Student with learning access')
+    ('student', 'Student with learning access'),
+    ('candidate', 'Candidate with examination access')
 ON CONFLICT (name) DO NOTHING;
 
 -- +migrate Down
