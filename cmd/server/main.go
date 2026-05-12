@@ -8,6 +8,7 @@ import (
 	"github.com/alvindashahrul/my-app/internal/config"
 	"github.com/alvindashahrul/my-app/internal/database"
 	"github.com/alvindashahrul/my-app/internal/handlers"
+	"github.com/alvindashahrul/my-app/internal/middleware"
 	"github.com/alvindashahrul/my-app/internal/repository"
 	"github.com/alvindashahrul/my-app/internal/routes"
 	"github.com/alvindashahrul/my-app/internal/services"
@@ -62,8 +63,13 @@ func main() {
 	fs := http.FileServer(http.Dir("uploads"))
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", fs))
 
+	// Apply CORS middleware
+	corsMiddleware := middleware.CORSMiddleware(cfg.CORSOrigins)
+	handler := corsMiddleware(http.DefaultServeMux)
+
 	// Start server
 	serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)
 	fmt.Printf("🚀 Server running at http://localhost%s\n", serverAddr)
-	log.Fatal(http.ListenAndServe(serverAddr, nil))
+	fmt.Printf("🌐 CORS enabled for: %s\n", cfg.CORSOrigins)
+	log.Fatal(http.ListenAndServe(serverAddr, handler))
 }
