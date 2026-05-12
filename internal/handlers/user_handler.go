@@ -29,7 +29,7 @@ func (h *UserHandler) UsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Route: /api/v1/users/{id} → GET, PUT, DELETE
+// Route: /api/v1/users/{id} → GET, PATCH, DELETE
 func (h *UserHandler) UserByIDHandler(w http.ResponseWriter, r *http.Request) {
 	id := utils.ExtractID(r, "/api/v1/users/")
 	if id == "" {
@@ -40,8 +40,8 @@ func (h *UserHandler) UserByIDHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		h.GetUserByID(w, r, id)
-	case http.MethodPut:
-		h.UpdateUser(w, r, id)
+	case http.MethodPatch:
+		h.PatchUser(w, r, id)
 	case http.MethodDelete:
 		h.DeleteUser(w, r, id)
 	default:
@@ -107,15 +107,21 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusCreated, "User created successfully", user, nil)
 }
 
-// PUT /api/v1/users/{id}
-func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id string) {
-	var input api.UpdateUserRequest
+// PATCH /api/v1/users/{id}
+func (h *UserHandler) PatchUser(w http.ResponseWriter, r *http.Request, id string) {
+	var input api.PatchUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		utils.JSONResponse(w, http.StatusBadRequest, "Body tidak valid", nil, nil)
 		return
 	}
 
-	user, err := h.service.UpdateUser(id, input.FullName, input.Email, input.Password, input.RoleID, input.Status)
+	// Validasi minimal satu field harus diisi
+	if input.Email == nil && input.Status == nil {
+		utils.JSONResponse(w, http.StatusBadRequest, "Minimal satu field (email atau status) harus diisi", nil, nil)
+		return
+	}
+
+	user, err := h.service.PatchUser(id, input.Email, input.Status)
 	if err != nil {
 		if err.Error() == "user tidak ditemukan" {
 			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)

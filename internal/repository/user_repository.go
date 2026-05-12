@@ -12,7 +12,7 @@ type UserRepository interface {
 	GetByEmail(email string) (*model.User, error)
 	GetByIDWithRole(id string) (*UserWithRole, error)
 	Create(fullName, email, password, roleID string, status bool) (*model.User, error)
-	Update(id, fullName, email, password, roleID string, status bool) (*model.User, error)
+	Patch(id string, email *string, status *bool) (*model.User, error)
 	Delete(id string) (int64, error)
 	UpdateLastLogin(id string) error
 }
@@ -145,33 +145,37 @@ func (r *userRepository) Create(fullName, email, password, roleID string, status
 	return &newUser, nil
 }
 
-func (r *userRepository) Update(id, fullName, email, password, roleID string, status bool) (*model.User, error) {
+func (r *userRepository) Patch(id string, email *string, status *bool) (*model.User, error) {
+	// Ambil data user yang ada
+	existingUser, err := r.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if existingUser == nil {
+		return nil, nil
+	}
+
+	// Update hanya field yang diberikan
+	if email != nil {
+		existingUser.Email = *email
+	}
+	if status != nil {
+		existingUser.Status = *status
+	}
+
+	// Simpan perubahan
 	var updated model.User
 	var roleName sql.NullString
-	var query string
-	var err error
-
-	if password != "" {
-		query = `UPDATE users 
-		         SET full_name = $1, email = $2, password = $3, role_id = $4, status = $5, updated_at = NOW() 
-		         WHERE id = $6 AND deleted_at IS NULL 
-		         RETURNING id, full_name, email, role_id, 
-		         (SELECT name FROM roles WHERE id = $4) as role_name,
-		         status, last_login, created_at, updated_at, deleted_at`
-		err = r.db.QueryRow(query, fullName, email, password, roleID, status, id).
-			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &roleName, &updated.Status, 
-				&updated.LastLogin, &updated.CreatedAt, &updated.UpdatedAt, &updated.DeletedAt)
-	} else {
-		query = `UPDATE users 
-		         SET full_name = $1, email = $2, role_id = $3, status = $4, updated_at = NOW() 
-		         WHERE id = $5 AND deleted_at IS NULL 
-		         RETURNING id, full_name, email, role_id, 
-		         (SELECT name FROM roles WHERE id = $3) as role_name,
-		         status, last_login, created_at, updated_at, deleted_at`
-		err = r.db.QueryRow(query, fullName, email, roleID, status, id).
-			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &roleName, &updated.Status, 
-				&updated.LastLogin, &updated.CreatedAt, &updated.UpdatedAt, &updated.DeletedAt)
-	}
+	query := `UPDATE users 
+	         SET email = $1, status = $2, updated_at = NOW() 
+	         WHERE id = $3 AND deleted_at IS NULL 
+	         RETURNING id, full_name, email, role_id, 
+	         (SELECT name FROM roles WHERE id = role_id) as role_name,
+	         status, last_login, created_at, updated_at, deleted_at`
+	
+	err = r.db.QueryRow(query, existingUser.Email, existingUser.Status, id).
+		Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &roleName, &updated.Status, 
+			&updated.LastLogin, &updated.CreatedAt, &updated.UpdatedAt, &updated.DeletedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil

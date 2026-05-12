@@ -14,7 +14,7 @@ type UserService interface {
 	GetUserByID(id string) (*model.User, error)
 	GetUserByIDWithRole(id string) (*repository.UserWithRole, error)
 	CreateUser(fullName, email, password, roleID string, status bool) (*model.User, error)
-	UpdateUser(id, fullName, email, password, roleID string, status bool) (*model.User, error)
+	PatchUser(id string, email *string, status *bool) (*model.User, error)
 	DeleteUser(id string) error
 	UpdateLastLogin(id string) error
 }
@@ -79,27 +79,17 @@ func (s *userService) CreateUser(fullName, email, password, roleID string, statu
 	return s.repo.Create(fullName, email, hashedPassword, roleID, status)
 }
 
-func (s *userService) UpdateUser(id, fullName, email, password, roleID string, status bool) (*model.User, error) {
-	if strings.TrimSpace(fullName) == "" {
-		return nil, errors.New("full_name tidak boleh kosong")
+func (s *userService) PatchUser(id string, email *string, status *bool) (*model.User, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, errors.New("ID tidak boleh kosong")
 	}
-	if strings.TrimSpace(email) == "" {
+
+	// Validasi email jika diberikan
+	if email != nil && strings.TrimSpace(*email) == "" {
 		return nil, errors.New("email tidak boleh kosong")
 	}
-	if strings.TrimSpace(roleID) == "" {
-		return nil, errors.New("role_id tidak boleh kosong")
-	}
 
-	// Hash password jika diubah
-	if password != "" {
-		hashedPassword, err := hashPassword(password)
-		if err != nil {
-			return nil, err
-		}
-		password = hashedPassword
-	}
-
-	user, err := s.repo.Update(id, fullName, email, password, roleID, status)
+	user, err := s.repo.Patch(id, email, status)
 	if err != nil {
 		return nil, err
 	}
