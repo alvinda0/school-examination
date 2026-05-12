@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/alvindashahrul/my-app/internal/api"
 	"github.com/alvindashahrul/my-app/internal/services"
@@ -106,30 +107,86 @@ func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request, 
 
 // POST /api/v1/teachers
 func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
-	var input api.CreateTeacherRequest
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, "Body tidak valid", nil, nil)
+	// Parse multipart form (max 10MB)
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, "Gagal parse form data", nil, nil)
 		return
 	}
 
-	if input.UserID == "" {
+	// Get form values
+	userID := r.FormValue("user_id")
+	if userID == "" {
 		utils.JSONResponse(w, http.StatusBadRequest, "user_id tidak boleh kosong", nil, nil)
 		return
 	}
 
+	// Get optional fields
+	var nip, gender, birthPlace, religion, phoneNumber, address, photoURL, status *string
+	
+	if val := r.FormValue("nip"); val != "" {
+		nip = &val
+	}
+	if val := r.FormValue("gender"); val != "" {
+		gender = &val
+	}
+	if val := r.FormValue("birth_place"); val != "" {
+		birthPlace = &val
+	}
+	if val := r.FormValue("religion"); val != "" {
+		religion = &val
+	}
+	if val := r.FormValue("phone_number"); val != "" {
+		phoneNumber = &val
+	}
+	if val := r.FormValue("address"); val != "" {
+		address = &val
+	}
+	if val := r.FormValue("status"); val != "" {
+		status = &val
+	}
+
+	// Handle file upload
+	file, header, err := r.FormFile("photo")
+	if err == nil {
+		defer file.Close()
+		
+		// Upload file
+		uploadPath, err := utils.UploadFile(file, header, "uploads/teachers")
+		if err != nil {
+			utils.JSONResponse(w, http.StatusBadRequest, err.Error(), nil, nil)
+			return
+		}
+		photoURL = &uploadPath
+	}
+
+	// Parse birth_date if provided
+	var birthDate *time.Time
+	if val := r.FormValue("birth_date"); val != "" {
+		parsedDate, err := time.Parse(time.RFC3339, val)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusBadRequest, "Format birth_date tidak valid. Gunakan ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)", nil, nil)
+			return
+		}
+		birthDate = &parsedDate
+	}
+
 	teacher, err := h.service.CreateTeacher(
-		input.UserID,
-		input.NIP,
-		input.Gender,
-		input.BirthPlace,
-		input.Religion,
-		input.PhoneNumber,
-		input.Address,
-		input.PhotoURL,
-		input.Status,
-		input.BirthDate,
+		userID,
+		nip,
+		gender,
+		birthPlace,
+		religion,
+		phoneNumber,
+		address,
+		photoURL,
+		status,
+		birthDate,
 	)
 	if err != nil {
+		// Delete uploaded file if teacher creation fails
+		if photoURL != nil {
+			utils.DeleteFile(*photoURL)
+		}
 		utils.JSONResponse(w, http.StatusBadRequest, err.Error(), nil, nil)
 		return
 	}
@@ -139,25 +196,96 @@ func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 
 // PATCH /api/v1/teachers/{id}
 func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request, id string) {
-	var input api.UpdateTeacherRequest
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, "Body tidak valid", nil, nil)
+	// Parse multipart form (max 10MB)
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, "Gagal parse form data", nil, nil)
 		return
+	}
+
+	// Get optional fields
+	var nip, gender, birthPlace, religion, phoneNumber, address, photoURL, status *string
+	
+	if val := r.FormValue("nip"); val != "" {
+		nip = &val
+	}
+	if val := r.FormValue("gender"); val != "" {
+		gender = &val
+	}
+	if val := r.FormValue("birth_place"); val != "" {
+		birthPlace = &val
+	}
+	if val := r.FormValue("religion"); val != "" {
+		religion = &val
+	}
+	if val := r.FormValue("phone_number"); val != "" {
+		phoneNumber = &val
+	}
+	if val := r.FormValue("address"); val != "" {
+		address = &val
+	}
+	if val := r.FormValue("status"); val != "" {
+		status = &val
+	}
+
+	// Get old teacher data for photo deletion
+	oldTeacher, err := h.service.GetTeacherByID(id)
+	if err != nil {
+		if err.Error() == "teacher tidak ditemukan" {
+			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
+			return
+		}
+		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
+		return
+	}
+
+	// Handle file upload
+	file, header, err := r.FormFile("photo")
+	if err == nil {
+		defer file.Close()
+		
+		// Upload new file
+		uploadPath, err := utils.UploadFile(file, header, "uploads/teachers")
+		if err != nil {
+			utils.JSONResponse(w, http.StatusBadRequest, err.Error(), nil, nil)
+			return
+		}
+		
+		// Delete old photo if exists
+		if oldTeacher.PhotoURL != nil && *oldTeacher.PhotoURL != "" {
+			utils.DeleteFile(*oldTeacher.PhotoURL)
+		}
+		
+		photoURL = &uploadPath
+	}
+
+	// Parse birth_date if provided
+	var birthDate *time.Time
+	if val := r.FormValue("birth_date"); val != "" {
+		parsedDate, err := time.Parse(time.RFC3339, val)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusBadRequest, "Format birth_date tidak valid. Gunakan ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)", nil, nil)
+			return
+		}
+		birthDate = &parsedDate
 	}
 
 	teacher, err := h.service.UpdateTeacher(
 		id,
-		input.NIP,
-		input.Gender,
-		input.BirthPlace,
-		input.Religion,
-		input.PhoneNumber,
-		input.Address,
-		input.PhotoURL,
-		input.Status,
-		input.BirthDate,
+		nip,
+		gender,
+		birthPlace,
+		religion,
+		phoneNumber,
+		address,
+		photoURL,
+		status,
+		birthDate,
 	)
 	if err != nil {
+		// Delete uploaded file if update fails
+		if photoURL != nil {
+			utils.DeleteFile(*photoURL)
+		}
 		if err.Error() == "teacher tidak ditemukan" {
 			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
 			return

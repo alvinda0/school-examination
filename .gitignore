@@ -42,3 +42,6 @@ Thumbs.db
 # Backup files
 *.backup
 
+# Uploads (keep folder structure but ignore uploaded files)
+uploads/**/*
+!uploads/**/.gitkeep

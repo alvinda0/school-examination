@@ -58,6 +58,10 @@ func main() {
 	// Setup routes
 	routes.SetupRoutes(userHandler, roleHandler, authHandler, studentHandler, subjectHandler, teacherHandler, authService)
 
+	// Serve static files (uploaded images)
+	fs := http.FileServer(http.Dir("uploads"))
+	http.Handle("/uploads/", http.StripPrefix("/uploads/", fs))
+
 	// Start server
 	serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)
 	fmt.Printf("🚀 Server running at http://localhost%s\n", serverAddr)
