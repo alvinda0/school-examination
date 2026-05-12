@@ -92,13 +92,19 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Default status ke true jika tidak diset
-	status := true
+	// Default status ke false jika tidak diset
+	status := false
 	if input.Status != nil {
 		status = *input.Status
 	}
 
-	user, err := h.service.CreateUser(input.FullName, input.Email, input.Password, input.RoleID, status)
+	// Default role_id ke student jika tidak diset
+	var roleID string
+	if input.RoleID != nil && *input.RoleID != "" {
+		roleID = *input.RoleID
+	}
+
+	user, err := h.service.CreateUser(input.FullName, input.Email, input.Password, roleID, status)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusBadRequest, err.Error(), nil, nil)
 		return

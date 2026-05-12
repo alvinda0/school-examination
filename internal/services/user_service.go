@@ -20,11 +20,15 @@ type UserService interface {
 }
 
 type userService struct {
-	repo repository.UserRepository
+	repo     repository.UserRepository
+	roleRepo repository.RoleRepository
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo repository.UserRepository, roleRepo repository.RoleRepository) UserService {
+	return &userService{
+		repo:     repo,
+		roleRepo: roleRepo,
+	}
 }
 
 // hashPassword melakukan hashing password dengan bcrypt
@@ -66,8 +70,17 @@ func (s *userService) CreateUser(fullName, email, password, roleID string, statu
 	if strings.TrimSpace(password) == "" {
 		return nil, errors.New("password tidak boleh kosong")
 	}
+
+	// Jika roleID kosong, gunakan role "student" sebagai default
 	if strings.TrimSpace(roleID) == "" {
-		return nil, errors.New("role_id tidak boleh kosong")
+		studentRole, err := s.roleRepo.GetByName("student")
+		if err != nil {
+			return nil, errors.New("gagal mendapatkan role default")
+		}
+		if studentRole == nil {
+			return nil, errors.New("role student tidak ditemukan")
+		}
+		roleID = studentRole.ID
 	}
 
 	// Hash password sebelum disimpan

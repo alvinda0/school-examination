@@ -9,6 +9,7 @@ import (
 type RoleRepository interface {
 	GetAll() ([]model.Role, error)
 	GetByID(id string) (*model.Role, error)
+	GetByName(name string) (*model.Role, error)
 	Create(name, description string) (*model.Role, error)
 	Update(id, name, description string) (*model.Role, error)
 	Delete(id string) (int64, error)
@@ -50,6 +51,23 @@ func (r *roleRepository) GetByID(id string) (*model.Role, error) {
 	query := "SELECT id, name, description, created_at, updated_at FROM roles WHERE id = $1"
 	
 	err := r.db.QueryRow(query, id).
+		Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt, &role.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &role, nil
+}
+
+func (r *roleRepository) GetByName(name string) (*model.Role, error) {
+	var role model.Role
+	query := "SELECT id, name, description, created_at, updated_at FROM roles WHERE name = $1"
+	
+	err := r.db.QueryRow(query, name).
 		Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt, &role.UpdatedAt)
 
 	if err == sql.ErrNoRows {
