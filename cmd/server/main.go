@@ -35,19 +35,22 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
+	studentRepo := repository.NewStudentRepository(db)
 
 	// Initialize services
 	userService := services.NewUserService(userRepo, roleRepo)
 	roleService := services.NewRoleService(roleRepo)
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret)
+	studentService := services.NewStudentService(studentRepo)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
 	roleHandler := handlers.NewRoleHandler(roleService)
 	authHandler := handlers.NewAuthHandler(userService, authService)
+	studentHandler := handlers.NewStudentHandler(studentService)
 
 	// Setup routes
-	routes.SetupRoutes(userHandler, roleHandler, authHandler, authService)
+	routes.SetupRoutes(userHandler, roleHandler, authHandler, studentHandler, authService)
 
 	// Start server
 	serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)
