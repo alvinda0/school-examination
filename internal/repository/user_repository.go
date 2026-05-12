@@ -39,12 +39,13 @@ func (r *userRepository) GetAll(roleID string) ([]model.User, error) {
 	var rows *sql.Rows
 	var err error
 
-	query := `SELECT id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at 
-	          FROM users 
-	          WHERE deleted_at IS NULL`
+	query := `SELECT u.id, u.full_name, u.email, u.role_id, r.name as role_name, u.status, u.last_login, u.created_at, u.updated_at, u.deleted_at 
+	          FROM users u
+	          LEFT JOIN roles r ON u.role_id = r.id
+	          WHERE u.deleted_at IS NULL`
 
 	if roleID != "" {
-		query += " AND role_id = $1"
+		query += " AND u.role_id = $1"
 		rows, err = r.db.Query(query, roleID)
 	} else {
 		rows, err = r.db.Query(query)
@@ -58,8 +59,12 @@ func (r *userRepository) GetAll(roleID string) ([]model.User, error) {
 	var users []model.User
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.RoleID, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt); err != nil {
+		var roleName sql.NullString
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.RoleID, &roleName, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt); err != nil {
 			return nil, err
+		}
+		if roleName.Valid {
+			u.RoleName = roleName.String
 		}
 		users = append(users, u)
 	}
@@ -73,18 +78,24 @@ func (r *userRepository) GetAll(roleID string) ([]model.User, error) {
 
 func (r *userRepository) GetByID(id string) (*model.User, error) {
 	var u model.User
-	query := `SELECT id, full_name, email, password, role_id, status, last_login, created_at, updated_at, deleted_at 
-	          FROM users 
-	          WHERE id = $1 AND deleted_at IS NULL`
+	var roleName sql.NullString
+	query := `SELECT u.id, u.full_name, u.email, u.password, u.role_id, r.name as role_name, u.status, u.last_login, u.created_at, u.updated_at, u.deleted_at 
+	          FROM users u
+	          LEFT JOIN roles r ON u.role_id = r.id
+	          WHERE u.id = $1 AND u.deleted_at IS NULL`
 	
 	err := r.db.QueryRow(query, id).
-		Scan(&u.ID, &u.FullName, &u.Email, &u.Password, &u.RoleID, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
+		Scan(&u.ID, &u.FullName, &u.Email, &u.Password, &u.RoleID, &roleName, &u.Status, &u.LastLogin, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if roleName.Valid {
+		u.RoleName = roleName.String
 	}
 
 	return &u, nil
@@ -111,17 +122,24 @@ func (r *userRepository) GetByEmail(email string) (*model.User, error) {
 
 func (r *userRepository) Create(fullName, email, password, roleID string, status bool) (*model.User, error) {
 	var newUser model.User
+	var roleName sql.NullString
 	
 	query := `INSERT INTO users (full_name, email, password, role_id, status, created_at, updated_at) 
 	          VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) 
-	          RETURNING id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at`
+	          RETURNING id, full_name, email, role_id, 
+	          (SELECT name FROM roles WHERE id = $4) as role_name,
+	          status, last_login, created_at, updated_at, deleted_at`
 	
 	err := r.db.QueryRow(query, fullName, email, password, roleID, status).
-		Scan(&newUser.ID, &newUser.FullName, &newUser.Email, &newUser.RoleID, &newUser.Status, 
+		Scan(&newUser.ID, &newUser.FullName, &newUser.Email, &newUser.RoleID, &roleName, &newUser.Status, 
 			&newUser.LastLogin, &newUser.CreatedAt, &newUser.UpdatedAt, &newUser.DeletedAt)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if roleName.Valid {
+		newUser.RoleName = roleName.String
 	}
 
 	return &newUser, nil
@@ -129,6 +147,7 @@ func (r *userRepository) Create(fullName, email, password, roleID string, status
 
 func (r *userRepository) Update(id, fullName, email, password, roleID string, status bool) (*model.User, error) {
 	var updated model.User
+	var roleName sql.NullString
 	var query string
 	var err error
 
@@ -136,17 +155,21 @@ func (r *userRepository) Update(id, fullName, email, password, roleID string, st
 		query = `UPDATE users 
 		         SET full_name = $1, email = $2, password = $3, role_id = $4, status = $5, updated_at = NOW() 
 		         WHERE id = $6 AND deleted_at IS NULL 
-		         RETURNING id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at`
+		         RETURNING id, full_name, email, role_id, 
+		         (SELECT name FROM roles WHERE id = $4) as role_name,
+		         status, last_login, created_at, updated_at, deleted_at`
 		err = r.db.QueryRow(query, fullName, email, password, roleID, status, id).
-			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &updated.Status, 
+			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &roleName, &updated.Status, 
 				&updated.LastLogin, &updated.CreatedAt, &updated.UpdatedAt, &updated.DeletedAt)
 	} else {
 		query = `UPDATE users 
 		         SET full_name = $1, email = $2, role_id = $3, status = $4, updated_at = NOW() 
 		         WHERE id = $5 AND deleted_at IS NULL 
-		         RETURNING id, full_name, email, role_id, status, last_login, created_at, updated_at, deleted_at`
+		         RETURNING id, full_name, email, role_id, 
+		         (SELECT name FROM roles WHERE id = $3) as role_name,
+		         status, last_login, created_at, updated_at, deleted_at`
 		err = r.db.QueryRow(query, fullName, email, roleID, status, id).
-			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &updated.Status, 
+			Scan(&updated.ID, &updated.FullName, &updated.Email, &updated.RoleID, &roleName, &updated.Status, 
 				&updated.LastLogin, &updated.CreatedAt, &updated.UpdatedAt, &updated.DeletedAt)
 	}
 
@@ -155,6 +178,10 @@ func (r *userRepository) Update(id, fullName, email, password, roleID string, st
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if roleName.Valid {
+		updated.RoleName = roleName.String
 	}
 
 	return &updated, nil
