@@ -11,6 +11,9 @@ import (
 type StudentService interface {
 	GetStudentByID(ctx context.Context, id uuid.UUID) (*model.Student, error)
 	GetAllStudents(ctx context.Context, page, pageSize int) ([]*model.Student, int, error)
+	CreateStudent(ctx context.Context, student *model.Student) error
+	UpdateStudent(ctx context.Context, id uuid.UUID, student *model.Student) error
+	DeleteStudent(ctx context.Context, id uuid.UUID) error
 }
 
 type studentService struct {
@@ -47,4 +50,29 @@ func (s *studentService) GetAllStudents(ctx context.Context, page, pageSize int)
 	}
 
 	return students, total, nil
+}
+
+func (s *studentService) CreateStudent(ctx context.Context, student *model.Student) error {
+	return s.studentRepo.Create(ctx, student)
+}
+
+func (s *studentService) UpdateStudent(ctx context.Context, id uuid.UUID, student *model.Student) error {
+	// Verify student exists
+	_, err := s.studentRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	student.ID = id
+	return s.studentRepo.Update(ctx, student)
+}
+
+func (s *studentService) DeleteStudent(ctx context.Context, id uuid.UUID) error {
+	// Verify student exists
+	_, err := s.studentRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	return s.studentRepo.Delete(ctx, id)
 }
