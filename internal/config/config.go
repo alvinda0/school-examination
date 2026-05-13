@@ -20,11 +20,11 @@ func Load() *Config {
 		DBPort:      getEnv("DB_PORT", "5433"),
 		DBUser:      getEnv("DB_USER", "postgres"),
 		DBPassword:  getEnv("DB_PASSWORD", "123456"),
-		DBName:      getEnv("DB_NAME", "postgres"),
+		DBName:      getEnv("DB_NAME", "school"),
 		DBSSLMode:   getEnv("DB_SSLMODE", "disable"),
 		ServerPort:  getEnv("SERVER_PORT", "8080"),
 		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key-change-this-in-production"),
-		CORSOrigins: getEnv("CORS_ORIGINS", "*"),
+		CORSOrigins: getEnv("CORS_ORIGINS", "http://localhost:3000"),
 	}
 }
 
