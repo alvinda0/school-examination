@@ -39,6 +39,7 @@ func main() {
 	studentRepo := repository.NewStudentRepository(db)
 	subjectRepo := repository.NewSubjectRepository(db)
 	teacherRepo := repository.NewTeacherRepository(db)
+	classRepo := repository.NewClassRepository(db)
 
 	// Initialize services
 	userService := services.NewUserService(userRepo, roleRepo)
@@ -47,6 +48,7 @@ func main() {
 	studentService := services.NewStudentService(studentRepo)
 	subjectService := services.NewSubjectService(subjectRepo)
 	teacherService := services.NewTeacherService(teacherRepo, userRepo, subjectRepo)
+	classService := services.NewClassService(classRepo, studentRepo, teacherRepo)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
@@ -55,9 +57,10 @@ func main() {
 	studentHandler := handlers.NewStudentHandler(studentService)
 	subjectHandler := handlers.NewSubjectHandler(subjectService)
 	teacherHandler := handlers.NewTeacherHandler(teacherService)
+	classHandler := handlers.NewClassHandler(classService)
 
 	// Setup routes
-	routes.SetupRoutes(userHandler, roleHandler, authHandler, studentHandler, subjectHandler, teacherHandler, authService)
+	routes.SetupRoutes(userHandler, roleHandler, authHandler, studentHandler, subjectHandler, teacherHandler, classHandler, authService)
 
 	// Serve static files (uploaded images)
 	fs := http.FileServer(http.Dir("uploads"))

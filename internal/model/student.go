@@ -9,6 +9,7 @@ import (
 type Student struct {
 	ID             uuid.UUID  `json:"id" db:"id"`
 	UserID         uuid.UUID  `json:"user_id" db:"user_id"`
+	ClassID        *uuid.UUID `json:"class_id,omitempty" db:"class_id"`
 	NIS            string     `json:"nis" db:"nis"`
 	NISN           *string    `json:"nisn,omitempty" db:"nisn"`
 	Gender         *string    `json:"gender,omitempty" db:"gender"`
@@ -31,4 +32,15 @@ type Student struct {
 type StudentWithUser struct {
 	Student
 	User User `json:"user"`
+}
+
+type StudentWithClass struct {
+	Student
+	Class *Class `json:"class,omitempty"`
+}
+
+type StudentWithDetails struct {
+	Student
+	User  User   `json:"user"`
+	Class *Class `json:"class,omitempty"`
 }

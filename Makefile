@@ -24,9 +24,32 @@ migrate:
 	psql -h localhost -p 5433 -U postgres -d school -f migrations/000001_create_roles.sql
 	psql -h localhost -p 5433 -U postgres -d school -f migrations/000001_create_users.sql
 	psql -h localhost -p 5433 -U postgres -d school -f migrations/000002_create_students.sql
-	psql -h localhost -p 5433 -U postgres -d school -f migrations/000003_insert_sample_students.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000003_create_subjects.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000004_create_teachers.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000005_create_teacher_subjects.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000006_create_classes.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000007_add_class_to_students.sql
 	@echo ""
 	@echo "✅ Migrations completed!"
+
+# Run only class migrations
+migrate-classes:
+	@echo "Running class migrations..."
+	@echo "Note: Make sure PostgreSQL is running on localhost:5433"
+	@echo ""
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000006_create_classes.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000007_add_class_to_students.sql
+	@echo ""
+	@echo "✅ Class migrations completed!"
+
+# Seed sample data
+seed:
+	@echo "Seeding sample data..."
+	@echo "Note: Make sure PostgreSQL is running on localhost:5433"
+	@echo ""
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/seed_classes.sql
+	@echo ""
+	@echo "✅ Sample data seeded!"
 
 # Run only student sample data migration
 migrate-students:

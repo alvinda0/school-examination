@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/alvindashahrul/my-app/internal/model"
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ type StudentRepository interface {
 	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, student *model.Student) error
 	Update(ctx context.Context, student *model.Student) error
+	UpdateFields(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -132,6 +134,58 @@ func (r *studentRepository) Update(ctx context.Context, student *model.Student) 
 		student.FatherName, student.MotherName, student.ParentPhone, student.PhotoURL,
 		student.Status, student.UpdatedAt, student.ID,
 	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("student not found")
+	}
+
+	return nil
+}
+
+func (r *studentRepository) UpdateFields(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	// Build dynamic UPDATE query
+	setClauses := []string{}
+	args := []interface{}{}
+	argPos := 1
+
+	for key, value := range updates {
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, argPos))
+		args = append(args, value)
+		argPos++
+	}
+
+	// Always update updated_at
+	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argPos))
+	args = append(args, time.Now())
+	argPos++
+
+	// Add WHERE clause
+	args = append(args, id)
+	query := fmt.Sprintf(`
+		UPDATE students SET %s
+		WHERE id = $%d AND deleted_at IS NULL
+	`, fmt.Sprintf("%s", setClauses[0]), argPos)
+
+	// Build full query with all SET clauses
+	for i := 1; i < len(setClauses); i++ {
+		query = fmt.Sprintf(`
+			UPDATE students SET %s
+			WHERE id = $%d AND deleted_at IS NULL
+		`, fmt.Sprintf("%s, %s", setClauses[0], setClauses[i]), argPos)
+	}
+
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}

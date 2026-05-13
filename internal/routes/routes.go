@@ -8,7 +8,7 @@ import (
 	"github.com/alvindashahrul/my-app/internal/services"
 )
 
-func SetupRoutes(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, authHandler *handlers.AuthHandler, studentHandler *handlers.StudentHandler, subjectHandler *handlers.SubjectHandler, teacherHandler *handlers.TeacherHandler, authService services.AuthService) {
+func SetupRoutes(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, authHandler *handlers.AuthHandler, studentHandler *handlers.StudentHandler, subjectHandler *handlers.SubjectHandler, teacherHandler *handlers.TeacherHandler, classHandler *handlers.ClassHandler, authService services.AuthService) {
 	// Inisialisasi middleware
 	authMiddleware := middleware.AuthMiddleware(authService)
 	roleMiddleware := func(roles ...string) func(http.HandlerFunc) http.HandlerFunc {
@@ -40,4 +40,8 @@ func SetupRoutes(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHa
 	// Teachers (bisa diakses oleh admin, super_admin)
 	http.HandleFunc("/api/v1/teachers", roleMiddleware("admin", "super_admin")(teacherHandler.TeachersHandler))
 	http.HandleFunc("/api/v1/teachers/", roleMiddleware("admin", "super_admin")(teacherHandler.TeacherByIDHandler))
+
+	// Classes (bisa diakses oleh admin, teacher, super_admin)
+	http.HandleFunc("/api/v1/classes", roleMiddleware("admin", "teacher", "super_admin")(classHandler.ClassesHandler))
+	http.HandleFunc("/api/v1/classes/", roleMiddleware("admin", "teacher", "super_admin")(classHandler.ClassByIDHandler))
 }

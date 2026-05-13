@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	ErrUserNotFound      = errors.New("user tidak ditemukan")
+	ErrNotFound          = errors.New("data tidak ditemukan")
 	ErrInvalidInput      = errors.New("input tidak valid")
 	ErrEmptyName         = errors.New("name tidak boleh kosong")
 	ErrInvalidAge        = errors.New("age harus lebih dari 0")
