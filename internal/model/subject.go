@@ -15,3 +15,13 @@ type Subject struct {
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 	DeletedAt   *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 }
+
+type TeacherInfo struct {
+	ID   uuid.UUID `json:"id" db:"id"`
+	Name string    `json:"name" db:"name"`
+}
+
+type SubjectWithTeachers struct {
+	Subject
+	Teachers []TeacherInfo `json:"teachers"`
+}

@@ -10,7 +10,7 @@ import (
 )
 
 type TeacherService interface {
-	GetAllTeachers() ([]model.TeacherWithUser, error)
+	GetAllTeachers() ([]model.TeacherWithSubjects, error)
 	GetTeacherByID(id string) (*model.TeacherWithSubjects, error)
 	CreateTeacher(userID string, nip, gender, birthPlace, religion, phoneNumber, address, photoURL, status *string, birthDate *time.Time) (*model.TeacherWithUser, error)
 	UpdateTeacher(id string, nip, gender, birthPlace, religion, phoneNumber, address, photoURL, status *string, birthDate *time.Time) (*model.TeacherWithUser, error)
@@ -33,7 +33,7 @@ func NewTeacherService(teacherRepo repository.TeacherRepository, userRepo reposi
 	}
 }
 
-func (s *teacherService) GetAllTeachers() ([]model.TeacherWithUser, error) {
+func (s *teacherService) GetAllTeachers() ([]model.TeacherWithSubjects, error) {
 	return s.teacherRepo.GetAll()
 }
 

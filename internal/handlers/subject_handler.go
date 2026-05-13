@@ -51,7 +51,7 @@ func (h *SubjectHandler) SubjectByIDHandler(w http.ResponseWriter, r *http.Reque
 
 // GET /api/v1/subjects
 func (h *SubjectHandler) GetSubjects(w http.ResponseWriter, r *http.Request) {
-	subjects, err := h.service.GetAllSubjects()
+	subjects, err := h.service.GetAllSubjectsWithTeachers()
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
 		return

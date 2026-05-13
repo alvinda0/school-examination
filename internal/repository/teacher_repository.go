@@ -9,7 +9,7 @@ import (
 )
 
 type TeacherRepository interface {
-	GetAll() ([]model.TeacherWithUser, error)
+	GetAll() ([]model.TeacherWithSubjects, error)
 	GetByID(id string) (*model.TeacherWithSubjects, error)
 	GetByUserID(userID string) (*model.Teacher, error)
 	Create(teacher *model.Teacher) error
@@ -28,7 +28,7 @@ func NewTeacherRepository(db *sql.DB) TeacherRepository {
 	return &teacherRepository{db: db}
 }
 
-func (r *teacherRepository) GetAll() ([]model.TeacherWithUser, error) {
+func (r *teacherRepository) GetAll() ([]model.TeacherWithSubjects, error) {
 	query := `
 		SELECT 
 			t.id, t.user_id, t.nip, t.gender, t.birth_place, t.birth_date,
@@ -48,9 +48,9 @@ func (r *teacherRepository) GetAll() ([]model.TeacherWithUser, error) {
 	}
 	defer rows.Close()
 
-	var teachers []model.TeacherWithUser
+	var teachers []model.TeacherWithSubjects
 	for rows.Next() {
-		var teacher model.TeacherWithUser
+		var teacher model.TeacherWithSubjects
 		err := rows.Scan(
 			&teacher.ID,
 			&teacher.UserID,
@@ -79,6 +79,14 @@ func (r *teacherRepository) GetAll() ([]model.TeacherWithUser, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// Get subjects for each teacher
+		subjects, err := r.GetTeacherSubjects(teacher.ID.String())
+		if err != nil {
+			return nil, err
+		}
+		teacher.Subjects = subjects
+
 		teachers = append(teachers, teacher)
 	}
 

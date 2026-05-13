@@ -9,6 +9,7 @@ import (
 
 type SubjectService interface {
 	GetAllSubjects() ([]model.Subject, error)
+	GetAllSubjectsWithTeachers() ([]model.SubjectWithTeachers, error)
 	GetSubjectByID(id string) (*model.Subject, error)
 	CreateSubject(name string, code, description *string) (*model.Subject, error)
 	UpdateSubject(id string, name *string, code, description *string) (*model.Subject, error)
@@ -25,6 +26,10 @@ func NewSubjectService(repo repository.SubjectRepository) SubjectService {
 
 func (s *subjectService) GetAllSubjects() ([]model.Subject, error) {
 	return s.repo.GetAll()
+}
+
+func (s *subjectService) GetAllSubjectsWithTeachers() ([]model.SubjectWithTeachers, error) {
+	return s.repo.GetAllWithTeachers()
 }
 
 func (s *subjectService) GetSubjectByID(id string) (*model.Subject, error) {
