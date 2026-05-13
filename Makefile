@@ -29,6 +29,7 @@ migrate:
 	psql -h localhost -p 5433 -U postgres -d school -f migrations/000005_create_teacher_subjects.sql
 	psql -h localhost -p 5433 -U postgres -d school -f migrations/000006_create_classes.sql
 	psql -h localhost -p 5433 -U postgres -d school -f migrations/000007_add_class_to_students.sql
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000008_create_audit_logs.sql
 	@echo ""
 	@echo "✅ Migrations completed!"
 
@@ -50,6 +51,24 @@ seed:
 	psql -h localhost -p 5433 -U postgres -d school -f migrations/seed_classes.sql
 	@echo ""
 	@echo "✅ Sample data seeded!"
+
+# Run only audit logs migration
+migrate-audit:
+	@echo "Running audit logs migration..."
+	@echo "Note: Make sure PostgreSQL is running on localhost:5433"
+	@echo ""
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/000008_create_audit_logs.sql
+	@echo ""
+	@echo "✅ Audit logs migration completed!"
+
+# Seed audit logs sample data
+seed-audit:
+	@echo "Seeding audit logs sample data..."
+	@echo "Note: Make sure PostgreSQL is running on localhost:5433"
+	@echo ""
+	psql -h localhost -p 5433 -U postgres -d school -f migrations/seed_audit_logs.sql
+	@echo ""
+	@echo "✅ Audit logs sample data seeded!"
 
 # Run only student sample data migration
 migrate-students:
