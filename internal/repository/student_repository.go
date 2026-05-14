@@ -12,7 +12,9 @@ import (
 
 type StudentRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*model.Student, error)
+	FindByIDWithUser(ctx context.Context, id uuid.UUID) (*model.StudentWithUser, error)
 	FindAll(ctx context.Context, limit, offset int) ([]*model.Student, error)
+	FindAllWithUser(ctx context.Context, limit, offset int) ([]*model.StudentWithUser, error)
 	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, student *model.Student) error
 	Update(ctx context.Context, student *model.Student) error
@@ -31,7 +33,7 @@ func NewStudentRepository(db *sql.DB) StudentRepository {
 func (r *studentRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Student, error) {
 	var student model.Student
 	query := `
-		SELECT id, user_id, nis, nisn, gender, birth_place, birth_date,
+		SELECT id, user_id, class_id, nis, nisn, gender, birth_place, birth_date,
 			   religion, phone_number, address, previous_school,
 			   father_name, mother_name, parent_phone, photo_url, status,
 			   created_at, updated_at, deleted_at
@@ -40,7 +42,7 @@ func (r *studentRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.
 	`
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&student.ID, &student.UserID, &student.NIS, &student.NISN, &student.Gender,
+		&student.ID, &student.UserID, &student.ClassID, &student.NIS, &student.NISN, &student.Gender,
 		&student.BirthPlace, &student.BirthDate, &student.Religion, &student.PhoneNumber,
 		&student.Address, &student.PreviousSchool, &student.FatherName, &student.MotherName,
 		&student.ParentPhone, &student.PhotoURL, &student.Status, &student.CreatedAt,
@@ -54,7 +56,7 @@ func (r *studentRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.
 
 func (r *studentRepository) FindAll(ctx context.Context, limit, offset int) ([]*model.Student, error) {
 	query := `
-		SELECT id, user_id, nis, nisn, gender, birth_place, birth_date,
+		SELECT id, user_id, class_id, nis, nisn, gender, birth_place, birth_date,
 			   religion, phone_number, address, previous_school,
 			   father_name, mother_name, parent_phone, photo_url, status,
 			   created_at, updated_at, deleted_at
@@ -74,7 +76,7 @@ func (r *studentRepository) FindAll(ctx context.Context, limit, offset int) ([]*
 	for rows.Next() {
 		var student model.Student
 		err := rows.Scan(
-			&student.ID, &student.UserID, &student.NIS, &student.NISN, &student.Gender,
+			&student.ID, &student.UserID, &student.ClassID, &student.NIS, &student.NISN, &student.Gender,
 			&student.BirthPlace, &student.BirthDate, &student.Religion, &student.PhoneNumber,
 			&student.Address, &student.PreviousSchool, &student.FatherName, &student.MotherName,
 			&student.ParentPhone, &student.PhotoURL, &student.Status, &student.CreatedAt,
@@ -89,8 +91,71 @@ func (r *studentRepository) FindAll(ctx context.Context, limit, offset int) ([]*
 	return students, rows.Err()
 }
 
-func (r *studentRepository) Count(ctx context.Context) (int, error) {
-	var count int
+func (r *studentRepository) FindByIDWithUser(ctx context.Context, id uuid.UUID) (*model.StudentWithUser, error) {
+	var s model.StudentWithUser
+	query := `
+		SELECT s.id, s.user_id, s.class_id, s.nis, s.nisn, s.gender, s.birth_place, s.birth_date,
+		       s.religion, s.phone_number, s.address, s.previous_school,
+		       s.father_name, s.mother_name, s.parent_phone, s.photo_url, s.status,
+		       s.created_at, s.updated_at, s.deleted_at,
+		       u.full_name, u.email
+		FROM students s
+		JOIN users u ON s.user_id = u.id
+		WHERE s.id = $1 AND s.deleted_at IS NULL
+	`
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&s.ID, &s.UserID, &s.ClassID, &s.NIS, &s.NISN, &s.Gender,
+		&s.BirthPlace, &s.BirthDate, &s.Religion, &s.PhoneNumber,
+		&s.Address, &s.PreviousSchool, &s.FatherName, &s.MotherName,
+		&s.ParentPhone, &s.PhotoURL, &s.Status, &s.CreatedAt,
+		&s.UpdatedAt, &s.DeletedAt,
+		&s.User.FullName, &s.User.Email,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("student not found")
+	}
+	return &s, err
+}
+
+func (r *studentRepository) FindAllWithUser(ctx context.Context, limit, offset int) ([]*model.StudentWithUser, error) {
+	query := `
+		SELECT s.id, s.user_id, s.class_id, s.nis, s.nisn, s.gender, s.birth_place, s.birth_date,
+		       s.religion, s.phone_number, s.address, s.previous_school,
+		       s.father_name, s.mother_name, s.parent_phone, s.photo_url, s.status,
+		       s.created_at, s.updated_at, s.deleted_at,
+		       u.full_name, u.email
+		FROM students s
+		JOIN users u ON s.user_id = u.id
+		WHERE s.deleted_at IS NULL
+		ORDER BY s.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var students []*model.StudentWithUser
+	for rows.Next() {
+		var s model.StudentWithUser
+		err := rows.Scan(
+			&s.ID, &s.UserID, &s.ClassID, &s.NIS, &s.NISN, &s.Gender,
+			&s.BirthPlace, &s.BirthDate, &s.Religion, &s.PhoneNumber,
+			&s.Address, &s.PreviousSchool, &s.FatherName, &s.MotherName,
+			&s.ParentPhone, &s.PhotoURL, &s.Status, &s.CreatedAt,
+			&s.UpdatedAt, &s.DeletedAt,
+			&s.User.FullName, &s.User.Email,
+		)
+		if err != nil {
+			return nil, err
+		}
+		students = append(students, &s)
+	}
+	return students, rows.Err()
+}
+
+func (r *studentRepository) Count(ctx context.Context) (int, error) {	var count int
 	query := `SELECT COUNT(*) FROM students WHERE deleted_at IS NULL`
 	err := r.db.QueryRowContext(ctx, query).Scan(&count)
 	return count, err

@@ -2,8 +2,6 @@ package api
 
 import (
 	"time"
-
-	"github.com/alvindashahrul/my-app/internal/model"
 )
 
 type CreateStudentRequest struct {
@@ -63,5 +61,6 @@ type StudentResponse struct {
 
 type StudentWithUserResponse struct {
 	StudentResponse
-	User model.User `json:"user"`
+	FullName string `json:"full_name"`
+	Email    string `json:"email"`
 }

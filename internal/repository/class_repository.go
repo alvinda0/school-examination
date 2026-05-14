@@ -19,7 +19,7 @@ type ClassRepository interface {
 	Update(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetWithTeacher(ctx context.Context, id uuid.UUID) (*model.ClassWithTeacherDetail, error)
-	GetWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudents, error)
+	GetWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudentsDetail, error)
 	GetStudentCount(ctx context.Context, classID uuid.UUID) (int, error)
 }
 
@@ -353,8 +353,8 @@ func (r *classRepository) GetWithTeacher(ctx context.Context, id uuid.UUID) (*mo
 	return &result, nil
 }
 
-func (r *classRepository) GetWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudents, error) {
-	var result model.ClassWithStudents
+func (r *classRepository) GetWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudentsDetail, error) {
+	var result model.ClassWithStudentsDetail
 
 	// Get class info
 	classQuery := `
@@ -375,14 +375,16 @@ func (r *classRepository) GetWithStudents(ctx context.Context, id uuid.UUID) (*m
 		return nil, err
 	}
 
-	// Get students
+	// Get students with user info
 	studentsQuery := `
-		SELECT id, user_id, class_id, nis, nisn, gender, birth_place, birth_date,
-		       religion, phone_number, address, previous_school, father_name,
-		       mother_name, parent_phone, photo_url, status, created_at, updated_at, deleted_at
-		FROM students
-		WHERE class_id = $1 AND deleted_at IS NULL
-		ORDER BY nis ASC
+		SELECT s.id, s.user_id, s.class_id, s.nis, s.nisn, s.gender, s.birth_place, s.birth_date,
+		       s.religion, s.phone_number, s.address, s.previous_school, s.father_name,
+		       s.mother_name, s.parent_phone, s.photo_url, s.status, s.created_at, s.updated_at, s.deleted_at,
+		       u.full_name, u.email
+		FROM students s
+		JOIN users u ON s.user_id = u.id
+		WHERE s.class_id = $1 AND s.deleted_at IS NULL
+		ORDER BY s.nis ASC
 	`
 	rows, err := r.db.QueryContext(ctx, studentsQuery, id)
 	if err != nil {
@@ -390,21 +392,22 @@ func (r *classRepository) GetWithStudents(ctx context.Context, id uuid.UUID) (*m
 	}
 	defer rows.Close()
 
-	result.Students = []model.Student{}
+	result.Students = []model.StudentInClass{}
 	for rows.Next() {
-		var student model.Student
+		var s model.StudentInClass
 		err := rows.Scan(
-			&student.ID, &student.UserID, &student.ClassID, &student.NIS,
-			&student.NISN, &student.Gender, &student.BirthPlace, &student.BirthDate,
-			&student.Religion, &student.PhoneNumber, &student.Address,
-			&student.PreviousSchool, &student.FatherName, &student.MotherName,
-			&student.ParentPhone, &student.PhotoURL, &student.Status,
-			&student.CreatedAt, &student.UpdatedAt, &student.DeletedAt,
+			&s.ID, &s.UserID, &s.ClassID, &s.NIS,
+			&s.NISN, &s.Gender, &s.BirthPlace, &s.BirthDate,
+			&s.Religion, &s.PhoneNumber, &s.Address,
+			&s.PreviousSchool, &s.FatherName, &s.MotherName,
+			&s.ParentPhone, &s.PhotoURL, &s.Status,
+			&s.CreatedAt, &s.UpdatedAt, &s.DeletedAt,
+			&s.FullName, &s.Email,
 		)
 		if err != nil {
 			return nil, err
 		}
-		result.Students = append(result.Students, student)
+		result.Students = append(result.Students, s)
 	}
 
 	result.CurrentStudents = len(result.Students)

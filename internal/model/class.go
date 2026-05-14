@@ -34,3 +34,15 @@ type ClassWithStudents struct {
 	Students        []Student `json:"students"`
 	CurrentStudents int       `json:"current_students"`
 }
+
+type StudentInClass struct {
+	Student
+	FullName string `json:"full_name"`
+	Email    string `json:"email"`
+}
+
+type ClassWithStudentsDetail struct {
+	Class
+	Students        []StudentInClass `json:"students"`
+	CurrentStudents int              `json:"current_students"`
+}

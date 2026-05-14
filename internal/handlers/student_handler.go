@@ -43,7 +43,7 @@ func (h *StudentHandler) GetAllStudents(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	response := mapper.ToStudentResponseList(students)
+	response := mapper.ToStudentWithUserResponseList(students)
 	meta := &api.Metadata{
 		Page:       page,
 		Limit:      pageSize,
@@ -67,7 +67,7 @@ func (h *StudentHandler) GetStudentByID(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	response := mapper.ToStudentResponse(student)
+	response := mapper.ToStudentWithUserResponse(student)
 	utils.JSONResponse(w, http.StatusOK, "Student retrieved successfully", response, nil)
 }
 
@@ -247,12 +247,12 @@ func (h *StudentHandler) UpdateStudent(w http.ResponseWriter, r *http.Request, i
 	existingStudent.UpdatedAt = time.Now()
 
 	// Update student
-	if err := h.studentService.UpdateStudent(r.Context(), studentID, existingStudent); err != nil {
+	if err := h.studentService.UpdateStudent(r.Context(), studentID, &existingStudent.Student); err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
 		return
 	}
 
-	response := mapper.ToStudentResponse(existingStudent)
+	response := mapper.ToStudentWithUserResponse(existingStudent)
 
 	r = middleware.SetAuditData(r, &middleware.AuditData{
 		Action:     "update",

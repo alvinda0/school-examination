@@ -19,7 +19,7 @@ type ClassService interface {
 	UpdateClass(ctx context.Context, id uuid.UUID, req *api.UpdateClassRequest) (*model.Class, error)
 	DeleteClass(ctx context.Context, id uuid.UUID) error
 	GetClassWithTeacher(ctx context.Context, id uuid.UUID) (*model.ClassWithTeacherDetail, error)
-	GetClassWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudents, error)
+	GetClassWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudentsDetail, error)
 	AssignStudentsToClass(ctx context.Context, classID uuid.UUID, studentIDs []uuid.UUID) error
 	RemoveStudentFromClass(ctx context.Context, studentID uuid.UUID) error
 }
@@ -188,7 +188,7 @@ func (s *classService) GetClassWithTeacher(ctx context.Context, id uuid.UUID) (*
 	return class, nil
 }
 
-func (s *classService) GetClassWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudents, error) {
+func (s *classService) GetClassWithStudents(ctx context.Context, id uuid.UUID) (*model.ClassWithStudentsDetail, error) {
 	class, err := s.classRepo.GetWithStudents(ctx, id)
 	if err != nil {
 		return nil, err

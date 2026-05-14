@@ -31,7 +31,8 @@ func ToStudentResponse(student *model.Student) *api.StudentResponse {
 func ToStudentWithUserResponse(studentWithUser *model.StudentWithUser) *api.StudentWithUserResponse {
 	return &api.StudentWithUserResponse{
 		StudentResponse: *ToStudentResponse(&studentWithUser.Student),
-		User:            studentWithUser.User,
+		FullName:        studentWithUser.User.FullName,
+		Email:           studentWithUser.User.Email,
 	}
 }
 
