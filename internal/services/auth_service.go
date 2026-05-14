@@ -30,22 +30,29 @@ func (s *AuthService) Register(req *model.RegisterRequest) (*model.AuthResponse,
 	}
 
 	// Default role: student
-	role := req.Role
-	if role == "" {
-		role = model.RoleStudent
+	roleName := req.Role
+	if roleName == "" {
+		roleName = model.RoleStudent
 	}
 
 	// Self-register hanya boleh sebagai student atau candidate
-	if role != model.RoleStudent && role != model.RoleCandidate {
+	if roleName != model.RoleStudent && roleName != model.RoleCandidate {
 		return nil, errors.New("self-registration only allowed for student or candidate role")
 	}
 
+	// Resolve role ID dari tabel roles
+	role, err := s.userRepo.FindRoleByName(roleName)
+	if err != nil {
+		return nil, err
+	}
+
 	user := &model.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: hashed,
-		Role:     role,
-		IsActive: true,
+		Name:      req.Name,
+		Email:     req.Email,
+		Password:  hashed,
+		RoleID:    role.ID,
+		RoleModel: role,
+		IsActive:  true,
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
@@ -57,7 +64,7 @@ func (s *AuthService) Register(req *model.RegisterRequest) (*model.AuthResponse,
 		return nil, err
 	}
 
-	return &model.AuthResponse{Token: token, User: *user}, nil
+	return &model.AuthResponse{Token: token}, nil
 }
 
 func (s *AuthService) Login(req *model.LoginRequest) (*model.AuthResponse, error) {
@@ -79,5 +86,5 @@ func (s *AuthService) Login(req *model.LoginRequest) (*model.AuthResponse, error
 		return nil, err
 	}
 
-	return &model.AuthResponse{Token: token, User: *user}, nil
+	return &model.AuthResponse{Token: token}, nil
 }

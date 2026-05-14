@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -20,10 +21,12 @@ func Setup(
 	questionHandler *handlers.QuestionHandler,
 	examHandler     *handlers.ExamHandler,
 ) *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 
 	// ── CORS ─────────────────────────────────────────────────────────
 	origins := strings.Split(config.AppConfig.CORSOrigins, ",")
+	log.Printf("CORS allowed origins: %v", origins)
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},

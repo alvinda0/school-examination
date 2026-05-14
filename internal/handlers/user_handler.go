@@ -57,12 +57,20 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	// Resolve role ID
+	role, err := h.userRepo.FindRoleByName(req.Role)
+	if err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+
 	user := &model.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: string(hashed),
-		Role:     req.Role,
-		IsActive: true,
+		Name:      req.Name,
+		Email:     req.Email,
+		Password:  string(hashed),
+		RoleID:    role.ID,
+		RoleModel: role,
+		IsActive:  true,
 	}
 	if err := h.userRepo.Create(user); err != nil {
 		utils.InternalError(c, "Failed to create user")
@@ -111,9 +119,9 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	var body struct {
-		Name     string     `json:"name"`
-		Role     model.Role `json:"role"`
-		IsActive *bool      `json:"is_active"`
+		Name     string          `json:"name"`
+		Role     model.RoleName  `json:"role"`
+		IsActive *bool           `json:"is_active"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -130,7 +138,14 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 			utils.BadRequest(c, "Invalid role. Valid: super_admin, admin, teacher, student, candidate")
 			return
 		}
-		user.Role = body.Role
+		// Resolve role ID baru
+		role, err := h.userRepo.FindRoleByName(body.Role)
+		if err != nil {
+			utils.BadRequest(c, err.Error())
+			return
+		}
+		user.RoleID = role.ID
+		user.RoleModel = role
 	}
 
 	if err := h.userRepo.Update(user); err != nil {
@@ -153,7 +168,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	utils.OK(c, "User deleted", nil)
 }
 
-func isValidRole(role model.Role) bool {
+func isValidRole(role model.RoleName) bool {
 	for _, r := range model.AllRoles {
 		if role == r {
 			return true

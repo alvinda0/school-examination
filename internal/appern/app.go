@@ -27,6 +27,7 @@ func New() *App {
 	config.Load()
 	db := database.Connect()
 	database.Migrate(db)
+	database.SeedRoles(db)
 	database.SeedSuperAdmin(db)
 
 	// Repositories
