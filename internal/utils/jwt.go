@@ -6,18 +6,18 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"school-examination/config"
-	"school-examination/internal/models"
+	"school-examination/internal/config"
+	"school-examination/internal/model"
 )
 
 type Claims struct {
 	UserID uuid.UUID   `json:"user_id"`
 	Email  string      `json:"email"`
-	Role   models.Role `json:"role"`
+	Role   model.Role  `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(user *models.User) (string, error) {
+func GenerateToken(user *model.User) (string, error) {
 	claims := Claims{
 		UserID: user.ID,
 		Email:  user.Email,

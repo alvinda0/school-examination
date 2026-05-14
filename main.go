@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log"
 
-	"school-examination/config"
-	"school-examination/database"
+	"school-examination/internal/config"
+	"school-examination/internal/database"
 	"school-examination/internal/handlers"
 	"school-examination/internal/repository"
+	"school-examination/internal/routes"
 	"school-examination/internal/services"
-	"school-examination/routes"
 )
 
 func main() {

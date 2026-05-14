@@ -2,8 +2,9 @@ package database
 
 import (
 	"log"
-	"school-examination/config"
-	"school-examination/internal/models"
+
+	"school-examination/internal/config"
+	"school-examination/internal/model"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -30,17 +31,17 @@ func Connect() *gorm.DB {
 // SeedSuperAdmin membuat super admin default jika belum ada
 func SeedSuperAdmin(db *gorm.DB) {
 	var count int64
-	db.Model(&models.User{}).Where("role = ?", models.RoleSuperAdmin).Count(&count)
+	db.Model(&model.User{}).Where("role = ?", model.RoleSuperAdmin).Count(&count)
 	if count > 0 {
 		return
 	}
 
 	// bcrypt hash dari "password"
-	superAdmin := models.User{
+	superAdmin := model.User{
 		Name:     "Super Admin",
 		Email:    "superadmin@school.com",
 		Password: "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
-		Role:     models.RoleSuperAdmin,
+		Role:     model.RoleSuperAdmin,
 		IsActive: true,
 	}
 
@@ -51,7 +52,7 @@ func SeedSuperAdmin(db *gorm.DB) {
 	log.Printf("[seed] Super admin created: superadmin@school.com / password (id: %s)", superAdmin.ID)
 }
 
-// AutoMigrate alias untuk backward compatibility dengan main.go
+// AutoMigrate alias untuk backward compatibility
 func AutoMigrate(db *gorm.DB) {
 	Migrate(db)
 }

@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 	"school-examination/internal/repository"
 
 	"github.com/google/uuid"
@@ -29,12 +29,12 @@ func NewExamService(
 	}
 }
 
-func (s *ExamService) CreateExam(req *models.ExamRequest, createdByID uuid.UUID) (*models.Exam, error) {
+func (s *ExamService) CreateExam(req *model.ExamRequest, createdByID uuid.UUID) (*model.Exam, error) {
 	if req.EndTime.Before(req.StartTime) {
 		return nil, errors.New("end_time must be after start_time")
 	}
 
-	exam := &models.Exam{
+	exam := &model.Exam{
 		Title:            req.Title,
 		SubjectID:        req.SubjectID,
 		ClassID:          req.ClassID,
@@ -42,7 +42,7 @@ func (s *ExamService) CreateExam(req *models.ExamRequest, createdByID uuid.UUID)
 		StartTime:        req.StartTime,
 		EndTime:          req.EndTime,
 		DurationMinutes:  req.DurationMinutes,
-		Status:           models.ExamStatusScheduled,
+		Status:           model.ExamStatusScheduled,
 		ShuffleQuestions: req.ShuffleQuestions,
 		ShuffleOptions:   req.ShuffleOptions,
 		AntiCheat:        req.AntiCheat,
@@ -59,7 +59,7 @@ func (s *ExamService) CreateExam(req *models.ExamRequest, createdByID uuid.UUID)
 	return s.examRepo.FindByID(exam.ID)
 }
 
-func (s *ExamService) StartExam(examID, studentID uuid.UUID) (*models.ExamSubmission, []models.ExamQuestion, error) {
+func (s *ExamService) StartExam(examID, studentID uuid.UUID) (*model.ExamSubmission, []model.ExamQuestion, error) {
 	s.examRepo.UpdateExpiredExams()
 
 	exam, err := s.examRepo.FindByID(examID)
@@ -78,17 +78,17 @@ func (s *ExamService) StartExam(examID, studentID uuid.UUID) (*models.ExamSubmis
 	// Kembalikan sesi yang sudah ada jika masih in_progress
 	existing, err := s.submissionRepo.FindByExamAndStudent(examID, studentID)
 	if err == nil && existing.ID != uuid.Nil {
-		if existing.Status != models.SubmissionStatusInProgress {
+		if existing.Status != model.SubmissionStatusInProgress {
 			return nil, nil, errors.New("you have already submitted this exam")
 		}
 		return existing, exam.ExamQuestions, nil
 	}
 
-	submission := &models.ExamSubmission{
+	submission := &model.ExamSubmission{
 		ExamID:    examID,
 		StudentID: studentID,
 		StartedAt: now,
-		Status:    models.SubmissionStatusInProgress,
+		Status:    model.SubmissionStatusInProgress,
 		MaxScore:  calculateMaxScore(exam.ExamQuestions),
 	}
 	if err := s.submissionRepo.Create(submission); err != nil {
@@ -112,7 +112,7 @@ func (s *ExamService) StartExam(examID, studentID uuid.UUID) (*models.ExamSubmis
 	return submission, questions, nil
 }
 
-func (s *ExamService) SaveAnswer(submissionID uuid.UUID, req *models.AnswerRequest, studentID uuid.UUID) error {
+func (s *ExamService) SaveAnswer(submissionID uuid.UUID, req *model.AnswerRequest, studentID uuid.UUID) error {
 	submission, err := s.submissionRepo.FindByID(submissionID)
 	if err != nil {
 		return errors.New("submission not found")
@@ -120,11 +120,11 @@ func (s *ExamService) SaveAnswer(submissionID uuid.UUID, req *models.AnswerReque
 	if submission.StudentID != studentID {
 		return errors.New("forbidden")
 	}
-	if submission.Status != models.SubmissionStatusInProgress {
+	if submission.Status != model.SubmissionStatusInProgress {
 		return errors.New("exam already submitted")
 	}
 
-	answer := &models.StudentAnswer{
+	answer := &model.StudentAnswer{
 		SubmissionID:   submissionID,
 		QuestionID:     req.QuestionID,
 		SelectedOption: req.SelectedOption,
@@ -133,7 +133,7 @@ func (s *ExamService) SaveAnswer(submissionID uuid.UUID, req *models.AnswerReque
 	return s.submissionRepo.SaveAnswer(answer)
 }
 
-func (s *ExamService) SubmitExam(submissionID, studentID uuid.UUID, req *models.SubmitRequest) (*models.ExamSubmission, error) {
+func (s *ExamService) SubmitExam(submissionID, studentID uuid.UUID, req *model.SubmitRequest) (*model.ExamSubmission, error) {
 	submission, err := s.submissionRepo.FindByID(submissionID)
 	if err != nil {
 		return nil, errors.New("submission not found")
@@ -141,12 +141,12 @@ func (s *ExamService) SubmitExam(submissionID, studentID uuid.UUID, req *models.
 	if submission.StudentID != studentID {
 		return nil, errors.New("forbidden")
 	}
-	if submission.Status != models.SubmissionStatusInProgress {
+	if submission.Status != model.SubmissionStatusInProgress {
 		return nil, errors.New("exam already submitted")
 	}
 
 	for _, ans := range req.Answers {
-		answer := &models.StudentAnswer{
+		answer := &model.StudentAnswer{
 			SubmissionID:   submissionID,
 			QuestionID:     ans.QuestionID,
 			SelectedOption: ans.SelectedOption,
@@ -164,7 +164,7 @@ func (s *ExamService) SubmitExam(submissionID, studentID uuid.UUID, req *models.
 	}
 
 	exam, _ := s.examRepo.FindByID(submission.ExamID)
-	submission.Status = models.SubmissionStatusSubmitted
+	submission.Status = model.SubmissionStatusSubmitted
 	submission.SubmittedAt = &now
 	submission.TotalScore = totalScore
 	submission.Percentage = percentage
@@ -187,7 +187,7 @@ func (s *ExamService) autoGrade(submissionID uuid.UUID) float64 {
 		ans := &submission.Answers[i]
 		q := ans.Question
 
-		if q.Type == models.QuestionTypeEssay {
+		if q.Type == model.QuestionTypeEssay {
 			continue
 		}
 		if ans.SelectedOption == nil {
@@ -214,7 +214,7 @@ func (s *ExamService) autoGrade(submissionID uuid.UUID) float64 {
 	return totalScore
 }
 
-func (s *ExamService) GradeEssay(req *models.GradeEssayRequest, gradedByID uuid.UUID) error {
+func (s *ExamService) GradeEssay(req *model.GradeEssayRequest, gradedByID uuid.UUID) error {
 	answer, err := s.submissionRepo.FindAnswerByID(req.AnswerID)
 	if err != nil {
 		return errors.New("answer not found")
@@ -248,20 +248,20 @@ func (s *ExamService) GradeEssay(req *models.GradeEssayRequest, gradedByID uuid.
 	submission.TotalScore = totalScore
 	submission.Percentage = percentage
 	submission.IsPassed = percentage >= float64(exam.PassingScore)
-	submission.Status = models.SubmissionStatusGraded
+	submission.Status = model.SubmissionStatusGraded
 
 	return s.submissionRepo.Update(submission)
 }
 
-func (s *ExamService) GetExamResults(examID uuid.UUID) ([]models.ExamResult, error) {
+func (s *ExamService) GetExamResults(examID uuid.UUID) ([]model.ExamResult, error) {
 	submissions, err := s.submissionRepo.FindByExam(examID)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]models.ExamResult, 0, len(submissions))
+	results := make([]model.ExamResult, 0, len(submissions))
 	for _, sub := range submissions {
-		results = append(results, models.ExamResult{
+		results = append(results, model.ExamResult{
 			SubmissionID: sub.ID,
 			StudentName:  sub.Student.Name,
 			StudentEmail: sub.Student.Email,
@@ -276,7 +276,7 @@ func (s *ExamService) GetExamResults(examID uuid.UUID) ([]models.ExamResult, err
 	return results, nil
 }
 
-func calculateMaxScore(questions []models.ExamQuestion) float64 {
+func calculateMaxScore(questions []model.ExamQuestion) float64 {
 	var total float64
 	for _, eq := range questions {
 		total += float64(eq.Question.Points)

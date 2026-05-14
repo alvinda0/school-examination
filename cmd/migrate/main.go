@@ -6,16 +6,15 @@ import (
 	"log"
 	"os"
 
-	"school-examination/config"
-	"school-examination/database"
+	"school-examination/internal/config"
+	"school-examination/internal/database"
 )
 
 func main() {
-	// Flags
-	fresh  := flag.Bool("fresh", false, "Drop semua tabel lalu recreate (HAPUS SEMUA DATA)")
-	seed   := flag.Bool("seed", false, "Jalankan seeder setelah migrate")
-	drop   := flag.Bool("drop", false, "Drop semua tabel saja tanpa recreate")
-	help   := flag.Bool("help", false, "Tampilkan bantuan")
+	fresh := flag.Bool("fresh", false, "Drop semua tabel lalu recreate (HAPUS SEMUA DATA)")
+	seed  := flag.Bool("seed", false, "Jalankan seeder setelah migrate")
+	drop  := flag.Bool("drop", false, "Drop semua tabel saja tanpa recreate")
+	help  := flag.Bool("help", false, "Tampilkan bantuan")
 
 	flag.Parse()
 
@@ -24,21 +23,16 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Load config
 	config.Load()
-
-	// Koneksi database
 	db := database.Connect()
 
 	switch {
 	case *drop:
-		// Hanya drop, tidak recreate
 		confirm("DROP semua tabel (semua data akan hilang)")
 		database.Drop(db)
 		log.Println("Done. Semua tabel telah dihapus.")
 
 	case *fresh:
-		// Drop + recreate + optional seed
 		confirm("FRESH migration (semua data akan hilang, tabel akan dibuat ulang)")
 		database.Fresh(db)
 		if *seed {
@@ -47,7 +41,6 @@ func main() {
 		log.Println("Done. Database berhasil direset.")
 
 	default:
-		// AutoMigrate biasa (tambah kolom baru, tidak hapus data)
 		log.Println("Running migration (safe mode - data tidak dihapus)...")
 		database.Migrate(db)
 		if *seed {

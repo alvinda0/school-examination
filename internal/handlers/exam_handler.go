@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"school-examination/internal/middleware"
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 	"school-examination/internal/repository"
 	"school-examination/internal/services"
 	"school-examination/internal/utils"
@@ -24,7 +24,7 @@ func NewExamHandler(examService *services.ExamService, examRepo *repository.Exam
 }
 
 func (h *ExamHandler) CreateExam(c *gin.Context) {
-	var req models.ExamRequest
+	var req model.ExamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -110,7 +110,7 @@ func (h *ExamHandler) SaveAnswer(c *gin.Context) {
 		utils.BadRequest(c, "Invalid submission ID")
 		return
 	}
-	var req models.AnswerRequest
+	var req model.AnswerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -129,7 +129,7 @@ func (h *ExamHandler) SubmitExam(c *gin.Context) {
 		utils.BadRequest(c, "Invalid submission ID")
 		return
 	}
-	var req models.SubmitRequest
+	var req model.SubmitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -158,7 +158,7 @@ func (h *ExamHandler) GetExamResults(c *gin.Context) {
 }
 
 func (h *ExamHandler) GradeEssay(c *gin.Context) {
-	var req models.GradeEssayRequest
+	var req model.GradeEssayRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -187,7 +187,7 @@ func (h *ExamHandler) GetMyResults(c *gin.Context) {
 // --- Class Handlers ---
 
 func (h *ExamHandler) CreateClass(c *gin.Context) {
-	var class models.Class
+	var class model.Class
 	if err := c.ShouldBindJSON(&class); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -209,7 +209,7 @@ func (h *ExamHandler) GetClasses(c *gin.Context) {
 }
 
 func (h *ExamHandler) AssignStudentToClass(c *gin.Context) {
-	var sc models.StudentClass
+	var sc model.StudentClass
 	if err := c.ShouldBindJSON(&sc); err != nil {
 		utils.BadRequest(c, err.Error())
 		return

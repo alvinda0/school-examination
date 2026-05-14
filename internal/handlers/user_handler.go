@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"school-examination/internal/middleware"
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 	"school-examination/internal/repository"
 	"school-examination/internal/utils"
 
@@ -31,15 +31,14 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	utils.OK(c, "Profile fetched", user)
 }
 
-// CreateUser — admin membuat user dengan role apapun
 func (h *UserHandler) CreateUser(c *gin.Context) {
-	var req models.RegisterRequest
+	var req model.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}
 	if req.Role == "" {
-		req.Role = models.RoleStudent
+		req.Role = model.RoleStudent
 	}
 	if !isValidRole(req.Role) {
 		utils.BadRequest(c, "Invalid role. Valid: super_admin, admin, teacher, student, candidate")
@@ -58,7 +57,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	user := &models.User{
+	user := &model.User{
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: string(hashed),
@@ -112,9 +111,9 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	var body struct {
-		Name     string      `json:"name"`
-		Role     models.Role `json:"role"`
-		IsActive *bool       `json:"is_active"`
+		Name     string     `json:"name"`
+		Role     model.Role `json:"role"`
+		IsActive *bool      `json:"is_active"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -154,8 +153,8 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	utils.OK(c, "User deleted", nil)
 }
 
-func isValidRole(role models.Role) bool {
-	for _, r := range models.AllRoles {
+func isValidRole(role model.Role) bool {
+	for _, r := range model.AllRoles {
 		if role == r {
 			return true
 		}

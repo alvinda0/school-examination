@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 	"school-examination/internal/repository"
 	"school-examination/internal/utils"
 )
@@ -17,7 +17,7 @@ func NewAuthService(userRepo *repository.UserRepository) *AuthService {
 	return &AuthService{userRepo: userRepo}
 }
 
-func (s *AuthService) Register(req *models.RegisterRequest) (*models.AuthResponse, error) {
+func (s *AuthService) Register(req *model.RegisterRequest) (*model.AuthResponse, error) {
 	// Cek email sudah ada
 	existing, err := s.userRepo.FindByEmail(req.Email)
 	if err == nil && existing.ID != uuid.Nil {
@@ -32,16 +32,15 @@ func (s *AuthService) Register(req *models.RegisterRequest) (*models.AuthRespons
 	// Default role: student
 	role := req.Role
 	if role == "" {
-		role = models.RoleStudent
+		role = model.RoleStudent
 	}
 
 	// Self-register hanya boleh sebagai student atau candidate
-	// Role lain (super_admin, admin, teacher) harus dibuat oleh admin
-	if role != models.RoleStudent && role != models.RoleCandidate {
+	if role != model.RoleStudent && role != model.RoleCandidate {
 		return nil, errors.New("self-registration only allowed for student or candidate role")
 	}
 
-	user := &models.User{
+	user := &model.User{
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: hashed,
@@ -58,10 +57,10 @@ func (s *AuthService) Register(req *models.RegisterRequest) (*models.AuthRespons
 		return nil, err
 	}
 
-	return &models.AuthResponse{Token: token, User: *user}, nil
+	return &model.AuthResponse{Token: token, User: *user}, nil
 }
 
-func (s *AuthService) Login(req *models.LoginRequest) (*models.AuthResponse, error) {
+func (s *AuthService) Login(req *model.LoginRequest) (*model.AuthResponse, error) {
 	user, err := s.userRepo.FindByEmail(req.Email)
 	if err != nil {
 		return nil, errors.New("invalid email or password")
@@ -80,5 +79,5 @@ func (s *AuthService) Login(req *models.LoginRequest) (*models.AuthResponse, err
 		return nil, err
 	}
 
-	return &models.AuthResponse{Token: token, User: *user}, nil
+	return &model.AuthResponse{Token: token, User: *user}, nil
 }

@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"school-examination/internal/middleware"
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 	"school-examination/internal/repository"
 	"school-examination/internal/utils"
 
@@ -21,7 +21,7 @@ func NewQuestionHandler(questionRepo *repository.QuestionRepository) *QuestionHa
 }
 
 func (h *QuestionHandler) CreateQuestion(c *gin.Context) {
-	var req models.QuestionRequest
+	var req model.QuestionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -31,7 +31,7 @@ func (h *QuestionHandler) CreateQuestion(c *gin.Context) {
 	}
 
 	userID := middleware.GetUserID(c)
-	question := &models.Question{
+	question := &model.Question{
 		SubjectID:   req.SubjectID,
 		CreatedByID: userID,
 		Type:        req.Type,
@@ -41,7 +41,7 @@ func (h *QuestionHandler) CreateQuestion(c *gin.Context) {
 		Explanation: req.Explanation,
 	}
 	for _, opt := range req.Options {
-		question.Options = append(question.Options, models.Option{
+		question.Options = append(question.Options, model.Option{
 			Content:   opt.Content,
 			IsCorrect: opt.IsCorrect,
 		})
@@ -102,12 +102,12 @@ func (h *QuestionHandler) UpdateQuestion(c *gin.Context) {
 
 	userID := middleware.GetUserID(c)
 	role := middleware.GetUserRole(c)
-	if role == models.RoleTeacher && question.CreatedByID != userID {
+	if role == model.RoleTeacher && question.CreatedByID != userID {
 		utils.Forbidden(c, "You can only edit your own questions")
 		return
 	}
 
-	var req models.QuestionRequest
+	var req model.QuestionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -121,7 +121,7 @@ func (h *QuestionHandler) UpdateQuestion(c *gin.Context) {
 	question.Explanation = req.Explanation
 	question.Options = nil
 	for _, opt := range req.Options {
-		question.Options = append(question.Options, models.Option{
+		question.Options = append(question.Options, model.Option{
 			Content:   opt.Content,
 			IsCorrect: opt.IsCorrect,
 		})
@@ -148,7 +148,7 @@ func (h *QuestionHandler) DeleteQuestion(c *gin.Context) {
 
 	userID := middleware.GetUserID(c)
 	role := middleware.GetUserRole(c)
-	if role == models.RoleTeacher && question.CreatedByID != userID {
+	if role == model.RoleTeacher && question.CreatedByID != userID {
 		utils.Forbidden(c, "You can only delete your own questions")
 		return
 	}
@@ -161,7 +161,7 @@ func (h *QuestionHandler) DeleteQuestion(c *gin.Context) {
 }
 
 func (h *QuestionHandler) CreateSubject(c *gin.Context) {
-	var subject models.Subject
+	var subject model.Subject
 	if err := c.ShouldBindJSON(&subject); err != nil {
 		utils.BadRequest(c, err.Error())
 		return

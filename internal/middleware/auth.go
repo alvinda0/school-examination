@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 	"school-examination/internal/utils"
 )
 
@@ -43,7 +43,7 @@ func Auth() gin.HandlerFunc {
 	}
 }
 
-func RequireRoles(roles ...models.Role) gin.HandlerFunc {
+func RequireRoles(roles ...model.Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		roleStr, exists := c.Get(UserRoleKey)
 		if !exists {
@@ -51,7 +51,7 @@ func RequireRoles(roles ...models.Role) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		userRole := models.Role(roleStr.(string))
+		userRole := model.Role(roleStr.(string))
 		for _, r := range roles {
 			if userRole == r {
 				c.Next()
@@ -68,7 +68,7 @@ func GetUserID(c *gin.Context) uuid.UUID {
 	return id.(uuid.UUID)
 }
 
-func GetUserRole(c *gin.Context) models.Role {
+func GetUserRole(c *gin.Context) model.Role {
 	role, _ := c.Get(UserRoleKey)
-	return models.Role(role.(string))
+	return model.Role(role.(string))
 }

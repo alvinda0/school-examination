@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -15,27 +15,27 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) Create(user *models.User) error {
+func (r *UserRepository) Create(user *model.User) error {
 	return r.db.Create(user).Error
 }
 
-func (r *UserRepository) FindByEmail(email string) (*models.User, error) {
-	var user models.User
+func (r *UserRepository) FindByEmail(email string) (*model.User, error) {
+	var user model.User
 	err := r.db.Where("email = ?", email).First(&user).Error
 	return &user, err
 }
 
-func (r *UserRepository) FindByID(id uuid.UUID) (*models.User, error) {
-	var user models.User
+func (r *UserRepository) FindByID(id uuid.UUID) (*model.User, error) {
+	var user model.User
 	err := r.db.First(&user, "id = ?", id).Error
 	return &user, err
 }
 
-func (r *UserRepository) FindAll(page, limit int, role string) ([]models.User, int64, error) {
-	var users []models.User
+func (r *UserRepository) FindAll(page, limit int, role string) ([]model.User, int64, error) {
+	var users []model.User
 	var total int64
 
-	query := r.db.Model(&models.User{})
+	query := r.db.Model(&model.User{})
 	if role != "" {
 		query = query.Where("role = ?", role)
 	}
@@ -44,10 +44,10 @@ func (r *UserRepository) FindAll(page, limit int, role string) ([]models.User, i
 	return users, total, err
 }
 
-func (r *UserRepository) Update(user *models.User) error {
+func (r *UserRepository) Update(user *model.User) error {
 	return r.db.Save(user).Error
 }
 
 func (r *UserRepository) Delete(id uuid.UUID) error {
-	return r.db.Delete(&models.User{}, "id = ?", id).Error
+	return r.db.Delete(&model.User{}, "id = ?", id).Error
 }

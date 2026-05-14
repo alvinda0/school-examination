@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"school-examination/internal/models"
+	"school-examination/internal/model"
 	"school-examination/internal/services"
 	"school-examination/internal/utils"
 
@@ -16,16 +16,8 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-// Register godoc
-// @Summary Register user baru
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param body body models.RegisterRequest true "Register request"
-// @Success 201 {object} utils.Response
-// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
-	var req models.RegisterRequest
+	var req model.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -40,16 +32,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	utils.Created(c, "Registration successful", resp)
 }
 
-// Login godoc
-// @Summary Login user
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param body body models.LoginRequest true "Login request"
-// @Success 200 {object} utils.Response
-// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
-	var req models.LoginRequest
+	var req model.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
