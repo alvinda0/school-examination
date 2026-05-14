@@ -1,49 +1,84 @@
 package utils
 
 import (
-	"encoding/json"
 	"net/http"
-	"strings"
 
-	"github.com/alvindashahrul/my-app/internal/api"
+	"github.com/gin-gonic/gin"
 )
 
-func JSONResponse(w http.ResponseWriter, status int, message string, data interface{}, meta *api.Metadata) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	res := api.Response{
-		Status:   status,
-		Success:  status < 400,
-		Message:  message,
-		Data:     data,
-		Metadata: meta,
-	}
-
-	json.NewEncoder(w).Encode(res)
+type Response struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
 }
 
-func SendSuccessResponse(w http.ResponseWriter, status int, message string, data interface{}) {
-	JSONResponse(w, status, message, data, nil)
+type PaginatedResponse struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+	Total   int64       `json:"total"`
+	Page    int         `json:"page"`
+	Limit   int         `json:"limit"`
 }
 
-func SendErrorResponse(w http.ResponseWriter, status int, message string, err error) {
-	errorMsg := message
-	if err != nil {
-		errorMsg = message + ": " + err.Error()
-	}
-	JSONResponse(w, status, errorMsg, nil, nil)
+func OK(c *gin.Context, message string, data interface{}) {
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Message: message,
+		Data:    data,
+	})
 }
 
-func SendPaginatedResponse(w http.ResponseWriter, status int, message string, data interface{}, page, limit, total int) {
-	meta := &api.Metadata{
-		Page:  page,
-		Limit: limit,
-		Total: total,
-	}
-	JSONResponse(w, status, message, data, meta)
+func Created(c *gin.Context, message string, data interface{}) {
+	c.JSON(http.StatusCreated, Response{
+		Success: true,
+		Message: message,
+		Data:    data,
+	})
 }
 
-func ExtractID(r *http.Request, prefix string) string {
-	return strings.TrimPrefix(r.URL.Path, prefix)
+func BadRequest(c *gin.Context, message string) {
+	c.JSON(http.StatusBadRequest, Response{
+		Success: false,
+		Message: message,
+	})
+}
+
+func Unauthorized(c *gin.Context, message string) {
+	c.JSON(http.StatusUnauthorized, Response{
+		Success: false,
+		Message: message,
+	})
+}
+
+func Forbidden(c *gin.Context, message string) {
+	c.JSON(http.StatusForbidden, Response{
+		Success: false,
+		Message: message,
+	})
+}
+
+func NotFound(c *gin.Context, message string) {
+	c.JSON(http.StatusNotFound, Response{
+		Success: false,
+		Message: message,
+	})
+}
+
+func InternalError(c *gin.Context, message string) {
+	c.JSON(http.StatusInternalServerError, Response{
+		Success: false,
+		Message: message,
+	})
+}
+
+func Paginated(c *gin.Context, message string, data interface{}, total int64, page, limit int) {
+	c.JSON(http.StatusOK, PaginatedResponse{
+		Success: true,
+		Message: message,
+		Data:    data,
+		Total:   total,
+		Page:    page,
+		Limit:   limit,
+	})
 }

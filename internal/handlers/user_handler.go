@@ -1,211 +1,168 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
+	"strconv"
 
-	"github.com/alvindashahrul/my-app/internal/api"
-	"github.com/alvindashahrul/my-app/internal/middleware"
-	"github.com/alvindashahrul/my-app/internal/model"
-	"github.com/alvindashahrul/my-app/internal/services"
-	"github.com/alvindashahrul/my-app/internal/utils"
+	"school-examination/internal/middleware"
+	"school-examination/internal/models"
+	"school-examination/internal/repository"
+	"school-examination/internal/utils"
+
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
-	service services.UserService
+	userRepo *repository.UserRepository
 }
 
-func NewUserHandler(service services.UserService) *UserHandler {
-	return &UserHandler{service: service}
+func NewUserHandler(userRepo *repository.UserRepository) *UserHandler {
+	return &UserHandler{userRepo: userRepo}
 }
 
-// Route: /api/v1/users → GET all, POST
-func (h *UserHandler) UsersHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		h.GetUsers(w, r)
-	case http.MethodPost:
-		h.CreateUser(w, r)
-	default:
-		utils.JSONResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil, nil)
+func (h *UserHandler) GetMe(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	user, err := h.userRepo.FindByID(userID)
+	if err != nil {
+		utils.NotFound(c, "User not found")
+		return
 	}
+	utils.OK(c, "Profile fetched", user)
 }
 
-// Route: /api/v1/users/{id} → GET, PATCH, DELETE
-func (h *UserHandler) UserByIDHandler(w http.ResponseWriter, r *http.Request) {
-	id := utils.ExtractID(r, "/api/v1/users/")
-	if id == "" {
-		utils.JSONResponse(w, http.StatusBadRequest, "ID tidak boleh kosong", nil, nil)
+// CreateUser — admin membuat user dengan role apapun
+func (h *UserHandler) CreateUser(c *gin.Context) {
+	var req models.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if req.Role == "" {
+		req.Role = models.RoleStudent
+	}
+	if !isValidRole(req.Role) {
+		utils.BadRequest(c, "Invalid role. Valid: super_admin, admin, teacher, student, candidate")
 		return
 	}
 
-	switch r.Method {
-	case http.MethodGet:
-		h.GetUserByID(w, r, id)
-	case http.MethodPatch:
-		h.PatchUser(w, r, id)
-	case http.MethodDelete:
-		h.DeleteUser(w, r, id)
-	default:
-		utils.JSONResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil, nil)
-	}
-}
-
-// GET /api/v1/users
-func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
-	roleID := r.URL.Query().Get("role_id")
-
-	users, err := h.service.GetAllUsers(roleID)
-	if err != nil {
-		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
+	existing, err := h.userRepo.FindByEmail(req.Email)
+	if err == nil && existing.ID != uuid.Nil {
+		utils.BadRequest(c, "Email already registered")
 		return
 	}
 
-	meta := &api.Metadata{
-		Page:       1,
-		Limit:      10,
-		Total:      len(users),
-		TotalPages: 1,
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		utils.InternalError(c, "Failed to hash password")
+		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, "Users retrieved successfully", users, meta)
+	user := &models.User{
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: string(hashed),
+		Role:     req.Role,
+		IsActive: true,
+	}
+	if err := h.userRepo.Create(user); err != nil {
+		utils.InternalError(c, "Failed to create user")
+		return
+	}
+	utils.Created(c, "User created", user)
 }
 
-// GET /api/v1/users/{id}
-func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request, id string) {
-	user, err := h.service.GetUserByID(id)
+func (h *UserHandler) GetUsers(c *gin.Context) {
+	page, _ := parseInt(c.DefaultQuery("page", "1"))
+	limit, _ := parseInt(c.DefaultQuery("limit", "20"))
+	role := c.Query("role")
+
+	users, total, err := h.userRepo.FindAll(page, limit, role)
 	if err != nil {
-		if err.Error() == "user tidak ditemukan" {
-			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
+		utils.InternalError(c, "Failed to fetch users")
+		return
+	}
+	utils.Paginated(c, "Users fetched", users, total, page, limit)
+}
+
+func (h *UserHandler) GetUser(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		utils.BadRequest(c, "Invalid user ID")
+		return
+	}
+	user, err := h.userRepo.FindByID(id)
+	if err != nil {
+		utils.NotFound(c, "User not found")
+		return
+	}
+	utils.OK(c, "User fetched", user)
+}
+
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		utils.BadRequest(c, "Invalid user ID")
+		return
+	}
+	user, err := h.userRepo.FindByID(id)
+	if err != nil {
+		utils.NotFound(c, "User not found")
+		return
+	}
+
+	var body struct {
+		Name     string      `json:"name"`
+		Role     models.Role `json:"role"`
+		IsActive *bool       `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if body.Name != "" {
+		user.Name = body.Name
+	}
+	if body.IsActive != nil {
+		user.IsActive = *body.IsActive
+	}
+	if body.Role != "" {
+		if !isValidRole(body.Role) {
+			utils.BadRequest(c, "Invalid role. Valid: super_admin, admin, teacher, student, candidate")
 			return
 		}
-		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
-		return
+		user.Role = body.Role
 	}
 
-	utils.JSONResponse(w, http.StatusOK, "User retrieved successfully", user, nil)
+	if err := h.userRepo.Update(user); err != nil {
+		utils.InternalError(c, "Failed to update user")
+		return
+	}
+	utils.OK(c, "User updated", user)
 }
 
-// POST /api/v1/users
-func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var input api.CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, "Body tidak valid", nil, nil)
-		return
-	}
-
-	status := true
-	if input.Status != nil {
-		status = *input.Status
-	}
-
-	var roleID string
-	if input.RoleID != nil && *input.RoleID != "" {
-		roleID = *input.RoleID
-	}
-
-	user, err := h.service.CreateUser(input.FullName, input.Email, input.Password, roleID, status)
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, err.Error(), nil, nil)
+		utils.BadRequest(c, "Invalid user ID")
 		return
 	}
-
-	entityID, _ := uuid.Parse(user.ID)
-	r = middleware.SetAuditData(r, &middleware.AuditData{
-		Action:     "create",
-		EntityID:   &entityID,
-		EntityType: "user",
-		NewData: model.JSONB{
-			"id":        user.ID,
-			"full_name": user.FullName,
-			"email":     user.Email,
-			"role_id":   user.RoleID,
-			"role_name": user.RoleName,
-			"status":    user.Status,
-		},
-	})
-
-	utils.JSONResponse(w, http.StatusCreated, "User created successfully", user, nil)
+	if err := h.userRepo.Delete(id); err != nil {
+		utils.InternalError(c, "Failed to delete user")
+		return
+	}
+	utils.OK(c, "User deleted", nil)
 }
 
-// PATCH /api/v1/users/{id}
-func (h *UserHandler) PatchUser(w http.ResponseWriter, r *http.Request, id string) {
-	var input api.PatchUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, "Body tidak valid", nil, nil)
-		return
-	}
-
-	if input.Email == nil && input.Status == nil {
-		utils.JSONResponse(w, http.StatusBadRequest, "Minimal satu field (email atau status) harus diisi", nil, nil)
-		return
-	}
-
-	// Ambil data lama sebelum update
-	oldUser, _ := h.service.GetUserByID(id)
-
-	user, err := h.service.PatchUser(id, input.Email, input.Status)
-	if err != nil {
-		if err.Error() == "user tidak ditemukan" {
-			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
-			return
-		}
-		utils.JSONResponse(w, http.StatusBadRequest, err.Error(), nil, nil)
-		return
-	}
-
-	entityID, _ := uuid.Parse(id)
-	auditData := &middleware.AuditData{
-		Action:     "update",
-		EntityID:   &entityID,
-		EntityType: "user",
-		Changes:    model.JSONB{},
-	}
-	if oldUser != nil {
-		if input.Email != nil && oldUser.Email != *input.Email {
-			auditData.Changes["email"] = map[string]interface{}{"old": oldUser.Email, "new": *input.Email}
-		}
-		if input.Status != nil && oldUser.Status != *input.Status {
-			auditData.Changes["status"] = map[string]interface{}{"old": oldUser.Status, "new": *input.Status}
+func isValidRole(role models.Role) bool {
+	for _, r := range models.AllRoles {
+		if role == r {
+			return true
 		}
 	}
-	r = middleware.SetAuditData(r, auditData)
-
-	utils.JSONResponse(w, http.StatusOK, "User updated successfully", user, nil)
+	return false
 }
 
-// DELETE /api/v1/users/{id}
-func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request, id string) {
-	// Ambil data sebelum dihapus
-	oldUser, _ := h.service.GetUserByID(id)
-
-	err := h.service.DeleteUser(id)
-	if err != nil {
-		if err.Error() == "user tidak ditemukan" {
-			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
-			return
-		}
-		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
-		return
-	}
-
-	entityID, _ := uuid.Parse(id)
-	auditData := &middleware.AuditData{
-		Action:     "delete",
-		EntityID:   &entityID,
-		EntityType: "user",
-	}
-	if oldUser != nil {
-		auditData.DeletedData = model.JSONB{
-			"id":        oldUser.ID,
-			"full_name": oldUser.FullName,
-			"email":     oldUser.Email,
-			"role_id":   oldUser.RoleID,
-			"status":    oldUser.Status,
-		}
-	}
-	r = middleware.SetAuditData(r, auditData)
-
-	utils.JSONResponse(w, http.StatusOK, "User deleted successfully", nil, nil)
+func parseInt(s string) (int, error) {
+	return strconv.Atoi(s)
 }

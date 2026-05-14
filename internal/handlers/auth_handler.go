@@ -1,105 +1,65 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-	"strings"
+	"school-examination/internal/models"
+	"school-examination/internal/services"
+	"school-examination/internal/utils"
 
-	"github.com/alvindashahrul/my-app/internal/api"
-	"github.com/alvindashahrul/my-app/internal/services"
-	"github.com/alvindashahrul/my-app/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
 type AuthHandler struct {
-	userService services.UserService
-	authService services.AuthService
+	authService *services.AuthService
 }
 
-func NewAuthHandler(userService services.UserService, authService services.AuthService) *AuthHandler {
-	return &AuthHandler{
-		userService: userService,
-		authService: authService,
-	}
+func NewAuthHandler(authService *services.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
 }
 
-// POST /api/v1/auth/login
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		utils.JSONResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil, nil)
+// Register godoc
+// @Summary Register user baru
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body models.RegisterRequest true "Register request"
+// @Success 201 {object} utils.Response
+// @Router /auth/register [post]
+func (h *AuthHandler) Register(c *gin.Context) {
+	var req models.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
 		return
 	}
 
-	var req api.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.JSONResponse(w, http.StatusBadRequest, "Invalid request body", nil, nil)
-		return
-	}
-
-	token, _, _, err := h.authService.Login(req.Email, req.Password)
+	resp, err := h.authService.Register(&req)
 	if err != nil {
-		statusCode := http.StatusUnauthorized
-		if err.Error() == "akun tidak aktif" {
-			statusCode = http.StatusForbidden
-		}
-		utils.JSONResponse(w, statusCode, err.Error(), nil, nil)
+		utils.BadRequest(c, err.Error())
 		return
 	}
 
-	response := map[string]string{
-		"token": token,
-	}
-
-	utils.JSONResponse(w, http.StatusOK, "Authentication successful", response, nil)
+	utils.Created(c, "Registration successful", resp)
 }
 
-// GET /api/v1/auth/me
-func (h *AuthHandler) GetAuthMe(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		utils.JSONResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil, nil)
+// Login godoc
+// @Summary Login user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body models.LoginRequest true "Login request"
+// @Success 200 {object} utils.Response
+// @Router /auth/login [post]
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req models.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
 		return
 	}
 
-	// Ambil token dari Authorization header
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		utils.JSONResponse(w, http.StatusUnauthorized, "Token tidak ditemukan", nil, nil)
-		return
-	}
-
-	// Format: Bearer <token>
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		utils.JSONResponse(w, http.StatusUnauthorized, "Format token tidak valid", nil, nil)
-		return
-	}
-
-	tokenString := parts[1]
-
-	// Validasi token dan ambil user ID
-	userID, err := h.authService.GetUserIDFromToken(tokenString)
+	resp, err := h.authService.Login(&req)
 	if err != nil {
-		utils.JSONResponse(w, http.StatusUnauthorized, err.Error(), nil, nil)
+		utils.Unauthorized(c, err.Error())
 		return
 	}
 
-	userWithRole, err := h.userService.GetUserByIDWithRole(userID)
-	if err != nil {
-		if err.Error() == "user tidak ditemukan" {
-			utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
-			return
-		}
-		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
-		return
-	}
-
-	response := api.AuthMeResponse{
-		UserID:   userWithRole.UserID,
-		FullName: userWithRole.FullName,
-		Email:    userWithRole.Email,
-		RoleName: userWithRole.RoleName,
-		RoleID:   userWithRole.RoleID,
-		Status:   userWithRole.Status,
-	}
-
-	utils.JSONResponse(w, http.StatusOK, "User info retrieved successfully", response, nil)
+	utils.OK(c, "Login successful", resp)
 }
