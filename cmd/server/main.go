@@ -57,9 +57,9 @@ func main() {
 	roleHandler := handlers.NewRoleHandler(roleService)
 	authHandler := handlers.NewAuthHandler(userService, authService)
 	studentHandler := handlers.NewStudentHandler(studentService)
-	subjectHandler := handlers.NewSubjectHandler(subjectService)
+	subjectHandler := handlers.NewSubjectHandler(subjectService, studentService)
 	teacherHandler := handlers.NewTeacherHandler(teacherService)
-	classHandler := handlers.NewClassHandler(classService)
+	classHandler := handlers.NewClassHandler(classService, studentService)
 	auditLogHandler := handlers.NewAuditLogHandler(auditLogService)
 
 	// Setup routes

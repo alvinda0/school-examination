@@ -12,6 +12,7 @@ import (
 
 type StudentRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*model.Student, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID) (*model.Student, error)
 	FindByIDWithUser(ctx context.Context, id uuid.UUID) (*model.StudentWithUser, error)
 	FindAll(ctx context.Context, limit, offset int) ([]*model.Student, error)
 	FindAllWithUser(ctx context.Context, limit, offset int) ([]*model.StudentWithUser, error)
@@ -42,6 +43,30 @@ func (r *studentRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.
 	`
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&student.ID, &student.UserID, &student.ClassID, &student.NIS, &student.NISN, &student.Gender,
+		&student.BirthPlace, &student.BirthDate, &student.Religion, &student.PhoneNumber,
+		&student.Address, &student.PreviousSchool, &student.FatherName, &student.MotherName,
+		&student.ParentPhone, &student.PhotoURL, &student.Status, &student.CreatedAt,
+		&student.UpdatedAt, &student.DeletedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("student not found")
+	}
+	return &student, err
+}
+
+func (r *studentRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (*model.Student, error) {
+	var student model.Student
+	query := `
+		SELECT id, user_id, class_id, nis, nisn, gender, birth_place, birth_date,
+			   religion, phone_number, address, previous_school,
+			   father_name, mother_name, parent_phone, photo_url, status,
+			   created_at, updated_at, deleted_at
+		FROM students
+		WHERE user_id = $1 AND deleted_at IS NULL
+		LIMIT 1
+	`
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(
 		&student.ID, &student.UserID, &student.ClassID, &student.NIS, &student.NISN, &student.Gender,
 		&student.BirthPlace, &student.BirthDate, &student.Religion, &student.PhoneNumber,
 		&student.Address, &student.PreviousSchool, &student.FatherName, &student.MotherName,

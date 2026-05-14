@@ -15,20 +15,28 @@ import (
 )
 
 type ClassHandler struct {
-	classService services.ClassService
+	classService   services.ClassService
+	studentService services.StudentService
 }
 
-func NewClassHandler(classService services.ClassService) *ClassHandler {
+func NewClassHandler(classService services.ClassService, studentService services.StudentService) *ClassHandler {
 	return &ClassHandler{
-		classService: classService,
+		classService:   classService,
+		studentService: studentService,
 	}
 }
 
 func (h *ClassHandler) ClassesHandler(w http.ResponseWriter, r *http.Request) {
+	role, _ := middleware.GetUserRoleFromContext(r.Context())
+
 	switch r.Method {
 	case http.MethodGet:
 		h.GetAllClasses(w, r)
 	case http.MethodPost:
+		if role == "student" {
+			utils.SendErrorResponse(w, http.StatusForbidden, "Anda tidak memiliki akses ke endpoint ini", nil)
+			return
+		}
 		h.CreateClass(w, r)
 	default:
 		utils.SendErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
@@ -39,7 +47,7 @@ func (h *ClassHandler) ClassByIDHandler(w http.ResponseWriter, r *http.Request) 
 	// Extract ID from path
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/classes/")
 	parts := strings.Split(path, "/")
-	
+
 	if len(parts) == 0 || parts[0] == "" {
 		utils.SendErrorResponse(w, http.StatusBadRequest, "Invalid class ID", nil)
 		return
@@ -51,6 +59,8 @@ func (h *ClassHandler) ClassByIDHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	role, _ := middleware.GetUserRoleFromContext(r.Context())
+
 	// Handle sub-routes
 	if len(parts) > 1 {
 		switch parts[1] {
@@ -60,6 +70,10 @@ func (h *ClassHandler) ClassByIDHandler(w http.ResponseWriter, r *http.Request) 
 			if r.Method == http.MethodGet {
 				h.GetClassWithStudents(w, r, id)
 			} else if r.Method == http.MethodPost {
+				if role == "student" {
+					utils.SendErrorResponse(w, http.StatusForbidden, "Anda tidak memiliki akses ke endpoint ini", nil)
+					return
+				}
 				h.AssignStudentsToClass(w, r, id)
 			} else {
 				utils.SendErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
@@ -75,8 +89,16 @@ func (h *ClassHandler) ClassByIDHandler(w http.ResponseWriter, r *http.Request) 
 	case http.MethodGet:
 		h.GetClassByID(w, r, id)
 	case http.MethodPut:
+		if role == "student" {
+			utils.SendErrorResponse(w, http.StatusForbidden, "Anda tidak memiliki akses ke endpoint ini", nil)
+			return
+		}
 		h.UpdateClass(w, r, id)
 	case http.MethodDelete:
+		if role == "student" {
+			utils.SendErrorResponse(w, http.StatusForbidden, "Anda tidak memiliki akses ke endpoint ini", nil)
+			return
+		}
 		h.DeleteClass(w, r, id)
 	default:
 		utils.SendErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
@@ -123,22 +145,58 @@ func (h *ClassHandler) GetClassByID(w http.ResponseWriter, r *http.Request, id u
 }
 
 func (h *ClassHandler) GetAllClasses(w http.ResponseWriter, r *http.Request) {
+	role, _ := middleware.GetUserRoleFromContext(r.Context())
+
+	// Jika student, hanya tampilkan kelas milik student tersebut
+	if role == "student" {
+		userIDStr, ok := middleware.GetUserIDFromContext(r.Context())
+		if !ok {
+			utils.SendErrorResponse(w, http.StatusUnauthorized, "User tidak ditemukan", nil)
+			return
+		}
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			utils.SendErrorResponse(w, http.StatusBadRequest, "User ID tidak valid", nil)
+			return
+		}
+
+		student, err := h.studentService.GetStudentByUserID(r.Context(), userID)
+		if err != nil {
+			utils.SendErrorResponse(w, http.StatusNotFound, "Data student tidak ditemukan", err)
+			return
+		}
+		if student.ClassID == nil {
+			utils.SendPaginatedResponse(w, http.StatusOK, "Classes retrieved successfully", []model.ClassWithTeacher{}, 1, 10, 0)
+			return
+		}
+
+		class, err := h.classService.GetClassByID(r.Context(), *student.ClassID)
+		if err != nil {
+			utils.SendErrorResponse(w, http.StatusNotFound, "Kelas tidak ditemukan", err)
+			return
+		}
+
+		classWithTeacher := model.ClassWithTeacher{Class: *class}
+		utils.SendPaginatedResponse(w, http.StatusOK, "Classes retrieved successfully", []model.ClassWithTeacher{classWithTeacher}, 1, 10, 1)
+		return
+	}
+
 	query := r.URL.Query()
-	
+
 	var params api.ClassQueryParams
 	params.Page, _ = strconv.Atoi(query.Get("page"))
 	params.Limit, _ = strconv.Atoi(query.Get("limit"))
-	
+
 	if gradeLevel := query.Get("grade_level"); gradeLevel != "" {
 		if gl, err := strconv.Atoi(gradeLevel); err == nil {
 			params.GradeLevel = &gl
 		}
 	}
-	
+
 	if academicYear := query.Get("academic_year"); academicYear != "" {
 		params.AcademicYear = &academicYear
 	}
-	
+
 	if status := query.Get("status"); status != "" {
 		params.Status = &status
 	}

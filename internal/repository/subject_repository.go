@@ -11,6 +11,7 @@ import (
 type SubjectRepository interface {
 	GetAll() ([]model.Subject, error)
 	GetAllWithTeachers() ([]model.SubjectWithTeachers, error)
+	GetSubjectsByClassID(classID uuid.UUID) ([]model.SubjectWithTeachers, error)
 	GetByID(id string) (*model.Subject, error)
 	Create(subject *model.Subject) error
 	Update(subject *model.Subject) error
@@ -129,6 +130,82 @@ func (r *subjectRepository) GetAllWithTeachers() ([]model.SubjectWithTeachers, e
 	}
 
 	// Convert map ke slice dengan urutan yang benar
+	var subjects []model.SubjectWithTeachers
+	for _, subjectID := range subjectOrder {
+		subjects = append(subjects, *subjectsMap[subjectID])
+	}
+
+	return subjects, nil
+}
+
+func (r *subjectRepository) GetSubjectsByClassID(classID uuid.UUID) ([]model.SubjectWithTeachers, error) {
+	// Get subjects taught by the homeroom teacher of the given class
+	query := `
+		SELECT 
+			s.id, s.name, s.code, s.description, s.created_at, s.updated_at, s.deleted_at,
+			t.id as teacher_id, u.full_name as teacher_name
+		FROM subjects s
+		JOIN teacher_subjects ts ON s.id = ts.subject_id
+		JOIN teachers t ON ts.teacher_id = t.id AND t.deleted_at IS NULL
+		JOIN users u ON t.user_id = u.id AND u.deleted_at IS NULL
+		JOIN classes c ON c.homeroom_teacher_id = t.id AND c.deleted_at IS NULL
+		WHERE s.deleted_at IS NULL AND c.id = $1
+		ORDER BY s.name ASC, u.full_name ASC
+	`
+
+	rows, err := r.db.Query(query, classID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	subjectsMap := make(map[string]*model.SubjectWithTeachers)
+	var subjectOrder []string
+
+	for rows.Next() {
+		var subject model.Subject
+		var teacherID sql.NullString
+		var teacherName sql.NullString
+
+		err := rows.Scan(
+			&subject.ID,
+			&subject.Name,
+			&subject.Code,
+			&subject.Description,
+			&subject.CreatedAt,
+			&subject.UpdatedAt,
+			&subject.DeletedAt,
+			&teacherID,
+			&teacherName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		subjectIDStr := subject.ID.String()
+
+		if _, exists := subjectsMap[subjectIDStr]; !exists {
+			subjectsMap[subjectIDStr] = &model.SubjectWithTeachers{
+				Subject:  subject,
+				Teachers: []model.TeacherInfo{},
+			}
+			subjectOrder = append(subjectOrder, subjectIDStr)
+		}
+
+		if teacherID.Valid && teacherName.Valid {
+			teacherUUID, err := uuid.Parse(teacherID.String)
+			if err == nil {
+				subjectsMap[subjectIDStr].Teachers = append(
+					subjectsMap[subjectIDStr].Teachers,
+					model.TeacherInfo{
+						ID:   teacherUUID,
+						Name: teacherName.String,
+					},
+				)
+			}
+		}
+	}
+
 	var subjects []model.SubjectWithTeachers
 	for _, subjectID := range subjectOrder {
 		subjects = append(subjects, *subjectsMap[subjectID])

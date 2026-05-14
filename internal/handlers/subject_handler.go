@@ -13,19 +13,26 @@ import (
 )
 
 type SubjectHandler struct {
-	service services.SubjectService
+	service        services.SubjectService
+	studentService services.StudentService
 }
 
-func NewSubjectHandler(service services.SubjectService) *SubjectHandler {
-	return &SubjectHandler{service: service}
+func NewSubjectHandler(service services.SubjectService, studentService services.StudentService) *SubjectHandler {
+	return &SubjectHandler{service: service, studentService: studentService}
 }
 
 // Route: /api/v1/subjects → GET all, POST
 func (h *SubjectHandler) SubjectsHandler(w http.ResponseWriter, r *http.Request) {
+	role, _ := middleware.GetUserRoleFromContext(r.Context())
+
 	switch r.Method {
 	case http.MethodGet:
 		h.GetSubjects(w, r)
 	case http.MethodPost:
+		if role == "student" {
+			utils.JSONResponse(w, http.StatusForbidden, "Anda tidak memiliki akses ke endpoint ini", nil, nil)
+			return
+		}
 		h.CreateSubject(w, r)
 	default:
 		utils.JSONResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil, nil)
@@ -40,12 +47,22 @@ func (h *SubjectHandler) SubjectByIDHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	role, _ := middleware.GetUserRoleFromContext(r.Context())
+
 	switch r.Method {
 	case http.MethodGet:
 		h.GetSubjectByID(w, r, id)
 	case http.MethodPatch:
+		if role == "student" {
+			utils.JSONResponse(w, http.StatusForbidden, "Anda tidak memiliki akses ke endpoint ini", nil, nil)
+			return
+		}
 		h.UpdateSubject(w, r, id)
 	case http.MethodDelete:
+		if role == "student" {
+			utils.JSONResponse(w, http.StatusForbidden, "Anda tidak memiliki akses ke endpoint ini", nil, nil)
+			return
+		}
 		h.DeleteSubject(w, r, id)
 	default:
 		utils.JSONResponse(w, http.StatusMethodNotAllowed, "Method not allowed", nil, nil)
@@ -54,6 +71,47 @@ func (h *SubjectHandler) SubjectByIDHandler(w http.ResponseWriter, r *http.Reque
 
 // GET /api/v1/subjects
 func (h *SubjectHandler) GetSubjects(w http.ResponseWriter, r *http.Request) {
+	role, _ := middleware.GetUserRoleFromContext(r.Context())
+
+	// Jika student, hanya tampilkan subjects dari kelas yang dimiliki student
+	if role == "student" {
+		userIDStr, ok := middleware.GetUserIDFromContext(r.Context())
+		if !ok {
+			utils.JSONResponse(w, http.StatusUnauthorized, "User tidak ditemukan", nil, nil)
+			return
+		}
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusBadRequest, "User ID tidak valid", nil, nil)
+			return
+		}
+
+		student, err := h.studentService.GetStudentByUserID(r.Context(), userID)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusNotFound, "Data student tidak ditemukan", nil, nil)
+			return
+		}
+		if student.ClassID == nil {
+			utils.JSONResponse(w, http.StatusOK, "Subjects retrieved successfully", []model.SubjectWithTeachers{}, &api.Metadata{Page: 1, Limit: 100, Total: 0, TotalPages: 1})
+			return
+		}
+
+		subjects, err := h.service.GetSubjectsByClassID(*student.ClassID)
+		if err != nil {
+			utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
+			return
+		}
+
+		meta := &api.Metadata{
+			Page:       1,
+			Limit:      100,
+			Total:      len(subjects),
+			TotalPages: 1,
+		}
+		utils.JSONResponse(w, http.StatusOK, "Subjects retrieved successfully", subjects, meta)
+		return
+	}
+
 	subjects, err := h.service.GetAllSubjectsWithTeachers()
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)

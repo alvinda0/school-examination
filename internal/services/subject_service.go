@@ -5,11 +5,13 @@ import (
 
 	"github.com/alvindashahrul/my-app/internal/model"
 	"github.com/alvindashahrul/my-app/internal/repository"
+	"github.com/google/uuid"
 )
 
 type SubjectService interface {
 	GetAllSubjects() ([]model.Subject, error)
 	GetAllSubjectsWithTeachers() ([]model.SubjectWithTeachers, error)
+	GetSubjectsByClassID(classID uuid.UUID) ([]model.SubjectWithTeachers, error)
 	GetSubjectByID(id string) (*model.Subject, error)
 	CreateSubject(name string, code, description *string) (*model.Subject, error)
 	UpdateSubject(id string, name *string, code, description *string) (*model.Subject, error)
@@ -30,6 +32,10 @@ func (s *subjectService) GetAllSubjects() ([]model.Subject, error) {
 
 func (s *subjectService) GetAllSubjectsWithTeachers() ([]model.SubjectWithTeachers, error) {
 	return s.repo.GetAllWithTeachers()
+}
+
+func (s *subjectService) GetSubjectsByClassID(classID uuid.UUID) ([]model.SubjectWithTeachers, error) {
+	return s.repo.GetSubjectsByClassID(classID)
 }
 
 func (s *subjectService) GetSubjectByID(id string) (*model.Subject, error) {

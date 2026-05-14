@@ -39,17 +39,17 @@ func SetupRoutes(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHa
 	http.HandleFunc("/api/v1/students", protected(studentHandler.StudentsHandler, "admin", "teacher", "super_admin"))
 	http.HandleFunc("/api/v1/students/", protected(studentHandler.StudentByIDHandler, "admin", "teacher", "super_admin"))
 
-	// Subjects (bisa diakses oleh admin, teacher, super_admin)
-	http.HandleFunc("/api/v1/subjects", protected(subjectHandler.SubjectsHandler, "admin", "teacher", "super_admin"))
-	http.HandleFunc("/api/v1/subjects/", protected(subjectHandler.SubjectByIDHandler, "admin", "teacher", "super_admin"))
+	// Subjects (bisa diakses oleh admin, teacher, super_admin, dan student untuk GET)
+	http.HandleFunc("/api/v1/subjects", protected(subjectHandler.SubjectsHandler, "admin", "teacher", "super_admin", "student"))
+	http.HandleFunc("/api/v1/subjects/", protected(subjectHandler.SubjectByIDHandler, "admin", "teacher", "super_admin", "student"))
 
 	// Teachers (bisa diakses oleh admin, super_admin)
 	http.HandleFunc("/api/v1/teachers", protected(teacherHandler.TeachersHandler, "admin", "super_admin"))
 	http.HandleFunc("/api/v1/teachers/", protected(teacherHandler.TeacherByIDHandler, "admin", "super_admin"))
 
-	// Classes (bisa diakses oleh admin, teacher, super_admin)
-	http.HandleFunc("/api/v1/classes", protected(classHandler.ClassesHandler, "admin", "teacher", "super_admin"))
-	http.HandleFunc("/api/v1/classes/", protected(classHandler.ClassByIDHandler, "admin", "teacher", "super_admin"))
+	// Classes (bisa diakses oleh admin, teacher, super_admin, dan student untuk GET)
+	http.HandleFunc("/api/v1/classes", protected(classHandler.ClassesHandler, "admin", "teacher", "super_admin", "student"))
+	http.HandleFunc("/api/v1/classes/", protected(classHandler.ClassByIDHandler, "admin", "teacher", "super_admin", "student"))
 
 	// Audit Logs (bisa diakses oleh admin, super_admin)
 	http.HandleFunc("/api/v1/audit-logs", protected(auditLogHandler.AuditLogsHandler, "admin", "super_admin"))

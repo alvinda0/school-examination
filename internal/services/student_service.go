@@ -10,6 +10,7 @@ import (
 
 type StudentService interface {
 	GetStudentByID(ctx context.Context, id uuid.UUID) (*model.StudentWithUser, error)
+	GetStudentByUserID(ctx context.Context, userID uuid.UUID) (*model.Student, error)
 	GetAllStudents(ctx context.Context, page, pageSize int) ([]*model.StudentWithUser, int, error)
 	CreateStudent(ctx context.Context, student *model.Student) error
 	UpdateStudent(ctx context.Context, id uuid.UUID, student *model.Student) error
@@ -28,6 +29,10 @@ func NewStudentService(studentRepo repository.StudentRepository) StudentService 
 
 func (s *studentService) GetStudentByID(ctx context.Context, id uuid.UUID) (*model.StudentWithUser, error) {
 	return s.studentRepo.FindByIDWithUser(ctx, id)
+}
+
+func (s *studentService) GetStudentByUserID(ctx context.Context, userID uuid.UUID) (*model.Student, error) {
+	return s.studentRepo.FindByUserID(ctx, userID)
 }
 
 func (s *studentService) GetAllStudents(ctx context.Context, page, pageSize int) ([]*model.StudentWithUser, int, error) {
