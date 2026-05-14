@@ -8,6 +8,7 @@ import (
 
 	"github.com/alvindashahrul/my-app/internal/api"
 	"github.com/alvindashahrul/my-app/internal/mapper"
+	"github.com/alvindashahrul/my-app/internal/middleware"
 	"github.com/alvindashahrul/my-app/internal/model"
 	"github.com/alvindashahrul/my-app/internal/services"
 	"github.com/alvindashahrul/my-app/internal/utils"
@@ -155,6 +156,21 @@ func (h *StudentHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := mapper.ToStudentResponse(student)
+
+	entityID := student.ID
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "create",
+		EntityID:   &entityID,
+		EntityType: "student",
+		NewData: model.JSONB{
+			"id":       student.ID,
+			"user_id":  student.UserID,
+			"nis":      student.NIS,
+			"gender":   student.Gender,
+			"status":   student.Status,
+		},
+	})
+
 	utils.JSONResponse(w, http.StatusCreated, "Student created successfully", response, nil)
 }
 
@@ -237,6 +253,17 @@ func (h *StudentHandler) UpdateStudent(w http.ResponseWriter, r *http.Request, i
 	}
 
 	response := mapper.ToStudentResponse(existingStudent)
+
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "update",
+		EntityID:   &studentID,
+		EntityType: "student",
+		Changes: model.JSONB{
+			"nis":    existingStudent.NIS,
+			"status": existingStudent.Status,
+		},
+	})
+
 	utils.JSONResponse(w, http.StatusOK, "Student updated successfully", response, nil)
 }
 
@@ -248,10 +275,28 @@ func (h *StudentHandler) DeleteStudent(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 
+	// Ambil data sebelum dihapus
+	existing, _ := h.studentService.GetStudentByID(r.Context(), studentID)
+
 	if err := h.studentService.DeleteStudent(r.Context(), studentID); err != nil {
 		utils.JSONResponse(w, http.StatusNotFound, err.Error(), nil, nil)
 		return
 	}
+
+	auditData := &middleware.AuditData{
+		Action:     "delete",
+		EntityID:   &studentID,
+		EntityType: "student",
+	}
+	if existing != nil {
+		auditData.DeletedData = model.JSONB{
+			"id":      existing.ID,
+			"user_id": existing.UserID,
+			"nis":     existing.NIS,
+			"status":  existing.Status,
+		}
+	}
+	r = middleware.SetAuditData(r, auditData)
 
 	utils.JSONResponse(w, http.StatusOK, "Student deleted successfully", nil, nil)
 }

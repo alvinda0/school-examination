@@ -45,7 +45,7 @@ func main() {
 	// Initialize services
 	userService := services.NewUserService(userRepo, roleRepo)
 	roleService := services.NewRoleService(roleRepo)
-	authService := services.NewAuthService(userRepo, cfg.JWTSecret)
+	authService := services.NewAuthService(userRepo, roleRepo, cfg.JWTSecret)
 	studentService := services.NewStudentService(studentRepo)
 	subjectService := services.NewSubjectService(subjectRepo)
 	teacherService := services.NewTeacherService(teacherRepo, userRepo, subjectRepo)
@@ -63,7 +63,7 @@ func main() {
 	auditLogHandler := handlers.NewAuditLogHandler(auditLogService)
 
 	// Setup routes
-	routes.SetupRoutes(userHandler, roleHandler, authHandler, studentHandler, subjectHandler, teacherHandler, classHandler, auditLogHandler, authService)
+	routes.SetupRoutes(userHandler, roleHandler, authHandler, studentHandler, subjectHandler, teacherHandler, classHandler, auditLogHandler, authService, auditLogService)
 
 	// Serve static files (uploaded images)
 	fs := http.FileServer(http.Dir("uploads"))

@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/alvindashahrul/my-app/internal/api"
+	"github.com/alvindashahrul/my-app/internal/middleware"
+	"github.com/alvindashahrul/my-app/internal/model"
 	"github.com/alvindashahrul/my-app/internal/services"
 	"github.com/alvindashahrul/my-app/internal/utils"
 )
@@ -94,6 +96,19 @@ func (h *ClassHandler) CreateClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "create",
+		EntityID:   &class.ID,
+		EntityType: "class",
+		NewData: model.JSONB{
+			"id":            class.ID,
+			"name":          class.Name,
+			"grade_level":   class.GradeLevel,
+			"academic_year": class.AcademicYear,
+			"status":        class.Status,
+		},
+	})
+
 	utils.SendSuccessResponse(w, http.StatusCreated, "Class created successfully", class)
 }
 
@@ -144,21 +159,58 @@ func (h *ClassHandler) UpdateClass(w http.ResponseWriter, r *http.Request, id uu
 		return
 	}
 
+	// Ambil data lama
+	oldClass, _ := h.classService.GetClassByID(r.Context(), id)
+
 	class, err := h.classService.UpdateClass(r.Context(), id, &req)
 	if err != nil {
 		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to update class", err)
 		return
 	}
 
+	changes := model.JSONB{}
+	if oldClass != nil {
+		if req.Name != nil && oldClass.Name != *req.Name {
+			changes["name"] = map[string]interface{}{"old": oldClass.Name, "new": *req.Name}
+		}
+		if req.Status != nil && oldClass.Status != *req.Status {
+			changes["status"] = map[string]interface{}{"old": oldClass.Status, "new": *req.Status}
+		}
+	}
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "update",
+		EntityID:   &id,
+		EntityType: "class",
+		Changes:    changes,
+	})
+
 	utils.SendSuccessResponse(w, http.StatusOK, "Class updated successfully", class)
 }
 
 func (h *ClassHandler) DeleteClass(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
+	// Ambil data sebelum dihapus
+	oldClass, _ := h.classService.GetClassByID(r.Context(), id)
+
 	err := h.classService.DeleteClass(r.Context(), id)
 	if err != nil {
 		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to delete class", err)
 		return
 	}
+
+	auditData := &middleware.AuditData{
+		Action:     "delete",
+		EntityID:   &id,
+		EntityType: "class",
+	}
+	if oldClass != nil {
+		auditData.DeletedData = model.JSONB{
+			"id":            oldClass.ID,
+			"name":          oldClass.Name,
+			"grade_level":   oldClass.GradeLevel,
+			"academic_year": oldClass.AcademicYear,
+		}
+	}
+	r = middleware.SetAuditData(r, auditData)
 
 	utils.SendSuccessResponse(w, http.StatusOK, "Class deleted successfully", nil)
 }

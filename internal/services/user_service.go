@@ -71,16 +71,16 @@ func (s *userService) CreateUser(fullName, email, password, roleID string, statu
 		return nil, errors.New("password tidak boleh kosong")
 	}
 
-	// Jika roleID kosong, gunakan role "student" sebagai default
+	// Jika roleID kosong, gunakan role "candidate" sebagai default
 	if strings.TrimSpace(roleID) == "" {
-		studentRole, err := s.roleRepo.GetByName("student")
+		candidateRole, err := s.roleRepo.GetByName("candidate")
 		if err != nil {
 			return nil, errors.New("gagal mendapatkan role default")
 		}
-		if studentRole == nil {
-			return nil, errors.New("role student tidak ditemukan")
+		if candidateRole == nil {
+			return nil, errors.New("role candidate tidak ditemukan")
 		}
-		roleID = studentRole.ID
+		roleID = candidateRole.ID
 	}
 
 	// Hash password sebelum disimpan

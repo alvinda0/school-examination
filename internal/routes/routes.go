@@ -8,43 +8,49 @@ import (
 	"github.com/alvindashahrul/my-app/internal/services"
 )
 
-func SetupRoutes(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, authHandler *handlers.AuthHandler, studentHandler *handlers.StudentHandler, subjectHandler *handlers.SubjectHandler, teacherHandler *handlers.TeacherHandler, classHandler *handlers.ClassHandler, auditLogHandler *handlers.AuditLogHandler, authService services.AuthService) {
+func SetupRoutes(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, authHandler *handlers.AuthHandler, studentHandler *handlers.StudentHandler, subjectHandler *handlers.SubjectHandler, teacherHandler *handlers.TeacherHandler, classHandler *handlers.ClassHandler, auditLogHandler *handlers.AuditLogHandler, authService services.AuthService, auditLogService services.AuditLogService) {
 	// Inisialisasi middleware
 	authMiddleware := middleware.AuthMiddleware(authService)
 	roleMiddleware := func(roles ...string) func(http.HandlerFunc) http.HandlerFunc {
 		return middleware.RoleMiddleware(authService, roles...)
+	}
+	auditMiddleware := middleware.AuditLogMiddleware(authService, auditLogService)
+
+	// Helper: gabungkan role middleware + audit log middleware
+	protected := func(handler http.HandlerFunc, roles ...string) http.HandlerFunc {
+		return auditMiddleware(roleMiddleware(roles...)(handler))
 	}
 
 	// Auth (login tidak perlu JWT)
 	http.HandleFunc("/api/v1/login", authHandler.Login)
 	
 	// Auth endpoints yang memerlukan JWT (semua role bisa akses)
-	http.HandleFunc("/api/v1/auth/me", authMiddleware(authHandler.GetAuthMe))
+	http.HandleFunc("/api/v1/auth/me", auditMiddleware(authMiddleware(authHandler.GetAuthMe)))
 
 	// Users CRUD (bisa diakses oleh admin, teacher, student, super_admin)
-	http.HandleFunc("/api/v1/users", roleMiddleware("admin", "teacher", "student", "super_admin")(userHandler.UsersHandler))
-	http.HandleFunc("/api/v1/users/", roleMiddleware("admin", "teacher", "student", "super_admin")(userHandler.UserByIDHandler))
+	http.HandleFunc("/api/v1/users", protected(userHandler.UsersHandler, "admin", "teacher", "student", "super_admin"))
+	http.HandleFunc("/api/v1/users/", protected(userHandler.UserByIDHandler, "admin", "teacher", "student", "super_admin"))
 
 	// Roles CRUD (bisa diakses oleh admin, teacher, student, super_admin)
-	http.HandleFunc("/api/v1/roles", roleMiddleware("admin", "teacher", "student", "super_admin")(roleHandler.RolesHandler))
-	http.HandleFunc("/api/v1/roles/", roleMiddleware("admin", "teacher", "student", "super_admin")(roleHandler.RoleByIDHandler))
+	http.HandleFunc("/api/v1/roles", protected(roleHandler.RolesHandler, "admin", "teacher", "student", "super_admin"))
+	http.HandleFunc("/api/v1/roles/", protected(roleHandler.RoleByIDHandler, "admin", "teacher", "student", "super_admin"))
 
 	// Students (bisa diakses oleh admin, teacher, super_admin)
-	http.HandleFunc("/api/v1/students", roleMiddleware("admin", "teacher", "super_admin")(studentHandler.StudentsHandler))
-	http.HandleFunc("/api/v1/students/", roleMiddleware("admin", "teacher", "super_admin")(studentHandler.StudentByIDHandler))
+	http.HandleFunc("/api/v1/students", protected(studentHandler.StudentsHandler, "admin", "teacher", "super_admin"))
+	http.HandleFunc("/api/v1/students/", protected(studentHandler.StudentByIDHandler, "admin", "teacher", "super_admin"))
 
 	// Subjects (bisa diakses oleh admin, teacher, super_admin)
-	http.HandleFunc("/api/v1/subjects", roleMiddleware("admin", "teacher", "super_admin")(subjectHandler.SubjectsHandler))
-	http.HandleFunc("/api/v1/subjects/", roleMiddleware("admin", "teacher", "super_admin")(subjectHandler.SubjectByIDHandler))
+	http.HandleFunc("/api/v1/subjects", protected(subjectHandler.SubjectsHandler, "admin", "teacher", "super_admin"))
+	http.HandleFunc("/api/v1/subjects/", protected(subjectHandler.SubjectByIDHandler, "admin", "teacher", "super_admin"))
 
 	// Teachers (bisa diakses oleh admin, super_admin)
-	http.HandleFunc("/api/v1/teachers", roleMiddleware("admin", "super_admin")(teacherHandler.TeachersHandler))
-	http.HandleFunc("/api/v1/teachers/", roleMiddleware("admin", "super_admin")(teacherHandler.TeacherByIDHandler))
+	http.HandleFunc("/api/v1/teachers", protected(teacherHandler.TeachersHandler, "admin", "super_admin"))
+	http.HandleFunc("/api/v1/teachers/", protected(teacherHandler.TeacherByIDHandler, "admin", "super_admin"))
 
 	// Classes (bisa diakses oleh admin, teacher, super_admin)
-	http.HandleFunc("/api/v1/classes", roleMiddleware("admin", "teacher", "super_admin")(classHandler.ClassesHandler))
-	http.HandleFunc("/api/v1/classes/", roleMiddleware("admin", "teacher", "super_admin")(classHandler.ClassByIDHandler))
+	http.HandleFunc("/api/v1/classes", protected(classHandler.ClassesHandler, "admin", "teacher", "super_admin"))
+	http.HandleFunc("/api/v1/classes/", protected(classHandler.ClassByIDHandler, "admin", "teacher", "super_admin"))
 
 	// Audit Logs (bisa diakses oleh admin, super_admin)
-	http.HandleFunc("/api/v1/audit-logs", roleMiddleware("admin", "super_admin")(auditLogHandler.AuditLogsHandler))
+	http.HandleFunc("/api/v1/audit-logs", protected(auditLogHandler.AuditLogsHandler, "admin", "super_admin"))
 }

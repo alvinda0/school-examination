@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/alvindashahrul/my-app/internal/api"
+	"github.com/alvindashahrul/my-app/internal/middleware"
+	"github.com/alvindashahrul/my-app/internal/model"
 	"github.com/alvindashahrul/my-app/internal/services"
 	"github.com/alvindashahrul/my-app/internal/utils"
+	"github.com/google/uuid"
 )
 
 type TeacherHandler struct {
@@ -191,6 +194,19 @@ func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	entityID := teacher.ID
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "create",
+		EntityID:   &entityID,
+		EntityType: "teacher",
+		NewData: model.JSONB{
+			"id":      teacher.ID,
+			"user_id": teacher.UserID,
+			"nip":     teacher.NIP,
+			"status":  teacher.Status,
+		},
+	})
+
 	utils.JSONResponse(w, http.StatusCreated, "Teacher created successfully", teacher, nil)
 }
 
@@ -294,11 +310,29 @@ func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 
+	entityID := teacher.ID
+	changes := model.JSONB{}
+	if nip != nil {
+		changes["nip"] = map[string]interface{}{"old": oldTeacher.NIP, "new": *nip}
+	}
+	if status != nil {
+		changes["status"] = map[string]interface{}{"old": oldTeacher.Status, "new": *status}
+	}
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "update",
+		EntityID:   &entityID,
+		EntityType: "teacher",
+		Changes:    changes,
+	})
+
 	utils.JSONResponse(w, http.StatusOK, "Teacher updated successfully", teacher, nil)
 }
 
 // DELETE /api/v1/teachers/{id}
 func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request, id string) {
+	// Ambil data sebelum dihapus
+	oldTeacher, _ := h.service.GetTeacherByID(id)
+
 	err := h.service.DeleteTeacher(id)
 	if err != nil {
 		if err.Error() == "teacher tidak ditemukan" {
@@ -308,6 +342,22 @@ func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request, i
 		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
 		return
 	}
+
+	entityID, _ := uuid.Parse(id)
+	auditData := &middleware.AuditData{
+		Action:     "delete",
+		EntityID:   &entityID,
+		EntityType: "teacher",
+	}
+	if oldTeacher != nil {
+		auditData.DeletedData = model.JSONB{
+			"id":      oldTeacher.ID,
+			"user_id": oldTeacher.UserID,
+			"nip":     oldTeacher.NIP,
+			"status":  oldTeacher.Status,
+		}
+	}
+	r = middleware.SetAuditData(r, auditData)
 
 	utils.JSONResponse(w, http.StatusOK, "Teacher deleted successfully", nil, nil)
 }

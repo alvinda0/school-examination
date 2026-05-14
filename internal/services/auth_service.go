@@ -15,16 +15,20 @@ type AuthService interface {
 	ValidateToken(tokenString string) (*jwt.Token, error)
 	GetUserIDFromToken(tokenString string) (string, error)
 	GetUserRoleFromToken(tokenString string) (string, error)
+	GetClaimsFromToken(tokenString string) (map[string]string, error)
+	GetFullClaimsFromToken(tokenString string) (map[string]string, error)
 }
 
 type authService struct {
 	userRepo  repository.UserRepository
+	roleRepo  repository.RoleRepository
 	jwtSecret string
 }
 
-func NewAuthService(userRepo repository.UserRepository, jwtSecret string) AuthService {
+func NewAuthService(userRepo repository.UserRepository, roleRepo repository.RoleRepository, jwtSecret string) AuthService {
 	return &authService{
 		userRepo:  userRepo,
+		roleRepo:  roleRepo,
 		jwtSecret: jwtSecret,
 	}
 }
@@ -66,11 +70,13 @@ func (s *authService) Login(email, password string) (string, *repository.UserWit
 	// Generate JWT token
 	expiresAt := time.Now().Add(24 * time.Hour).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"role":    userWithRole.RoleName, // Gunakan RoleName dari userWithRole
-		"exp":     expiresAt,
-		"iat":     time.Now().Unix(),
+		"user_id":   user.ID,
+		"email":     user.Email,
+		"full_name": userWithRole.FullName,
+		"role":      userWithRole.RoleName,
+		"role_id":   userWithRole.RoleID,
+		"exp":       expiresAt,
+		"iat":       time.Now().Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
@@ -140,4 +146,66 @@ func (s *authService) GetUserRoleFromToken(tokenString string) (string, error) {
 	}
 
 	return role, nil
+}
+
+// GetClaimsFromToken mengambil semua claims yang dibutuhkan audit log dari JWT token
+func (s *authService) GetClaimsFromToken(tokenString string) (map[string]string, error) {
+	token, err := s.ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims")
+	}
+
+	result := map[string]string{
+		"user_id":   "",
+		"full_name": "",
+		"role":      "",
+		"role_id":   "",
+	}
+
+	if v, ok := claims["user_id"].(string); ok {
+		result["user_id"] = v
+	}
+	if v, ok := claims["full_name"].(string); ok {
+		result["full_name"] = v
+	}
+	if v, ok := claims["role"].(string); ok {
+		result["role"] = v
+	}
+	if v, ok := claims["role_id"].(string); ok {
+		result["role_id"] = v
+	}
+
+	return result, nil
+}
+
+// GetFullClaimsFromToken mengambil claims lengkap, fallback ke DB jika role_id tidak ada di token
+func (s *authService) GetFullClaimsFromToken(tokenString string) (map[string]string, error) {
+	claims, err := s.GetClaimsFromToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	// Jika role_id sudah ada di token (token baru), langsung return
+	if claims["role_id"] != "" {
+		return claims, nil
+	}
+
+	// Token lama tidak punya role_id — ambil dari DB pakai user_id
+	userWithRole, err := s.userRepo.GetByIDWithRole(claims["user_id"])
+	if err != nil || userWithRole == nil {
+		return nil, errors.New("user tidak ditemukan")
+	}
+
+	claims["role_id"] = userWithRole.RoleID
+	claims["full_name"] = userWithRole.FullName
+	if claims["role"] == "" {
+		claims["role"] = userWithRole.RoleName
+	}
+
+	return claims, nil
 }

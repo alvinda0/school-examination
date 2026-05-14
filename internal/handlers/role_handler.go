@@ -5,8 +5,11 @@ import (
 	"net/http"
 
 	"github.com/alvindashahrul/my-app/internal/api"
+	"github.com/alvindashahrul/my-app/internal/middleware"
+	"github.com/alvindashahrul/my-app/internal/model"
 	"github.com/alvindashahrul/my-app/internal/services"
 	"github.com/alvindashahrul/my-app/internal/utils"
+	"github.com/google/uuid"
 )
 
 type RoleHandler struct {
@@ -96,6 +99,18 @@ func (h *RoleHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	entityID, _ := uuid.Parse(role.ID)
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "create",
+		EntityID:   &entityID,
+		EntityType: "role",
+		NewData: model.JSONB{
+			"id":          role.ID,
+			"name":        role.Name,
+			"description": role.Description,
+		},
+	})
+
 	utils.JSONResponse(w, http.StatusCreated, "Role created successfully", role, nil)
 }
 
@@ -107,6 +122,9 @@ func (h *RoleHandler) UpdateRole(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 
+	// Ambil data lama
+	oldRole, _ := h.service.GetRoleByID(id)
+
 	role, err := h.service.UpdateRole(id, input.Name, input.Description)
 	if err != nil {
 		if err.Error() == "role tidak ditemukan" {
@@ -117,11 +135,28 @@ func (h *RoleHandler) UpdateRole(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 
+	entityID, _ := uuid.Parse(id)
+	changes := model.JSONB{}
+	if oldRole != nil {
+		if oldRole.Name != input.Name {
+			changes["name"] = map[string]interface{}{"old": oldRole.Name, "new": input.Name}
+		}
+	}
+	r = middleware.SetAuditData(r, &middleware.AuditData{
+		Action:     "update",
+		EntityID:   &entityID,
+		EntityType: "role",
+		Changes:    changes,
+	})
+
 	utils.JSONResponse(w, http.StatusOK, "Role updated successfully", role, nil)
 }
 
 // DELETE /api/v1/roles/{id}
 func (h *RoleHandler) DeleteRole(w http.ResponseWriter, r *http.Request, id string) {
+	// Ambil data sebelum dihapus
+	oldRole, _ := h.service.GetRoleByID(id)
+
 	err := h.service.DeleteRole(id)
 	if err != nil {
 		if err.Error() == "role tidak ditemukan" {
@@ -131,6 +166,20 @@ func (h *RoleHandler) DeleteRole(w http.ResponseWriter, r *http.Request, id stri
 		utils.JSONResponse(w, http.StatusInternalServerError, err.Error(), nil, nil)
 		return
 	}
+
+	entityID, _ := uuid.Parse(id)
+	auditData := &middleware.AuditData{
+		Action:     "delete",
+		EntityID:   &entityID,
+		EntityType: "role",
+	}
+	if oldRole != nil {
+		auditData.DeletedData = model.JSONB{
+			"id":   oldRole.ID,
+			"name": oldRole.Name,
+		}
+	}
+	r = middleware.SetAuditData(r, auditData)
 
 	utils.JSONResponse(w, http.StatusOK, "Role deleted successfully", nil, nil)
 }
